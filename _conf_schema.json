@@ -1,0 +1,650 @@
+{
+  "memory_compact_threshold": {
+    "description": "记忆压缩阈值（字符数）",
+    "type": "int",
+    "default": 50000,
+    "hint": "当记忆内容超过此字符数时触发压缩，范围：1000-500000。推荐值：50000（适配 128K-200K 模型），超大上下文模型可设置更高"
+  },
+  "daily_note_enabled": {
+    "description": "是否启用日记",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后会自动生成每日日记"
+  },
+  "cross_group_enabled": {
+    "description": "是否启用跨群功能",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后支持跨群组的消息同步和任务管理"
+  },
+  "embedding_enabled": {
+    "description": "是否启用嵌入",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后使用向量嵌入进行语义搜索"
+  },
+  "search_top_k": {
+    "description": "搜索返回结果数",
+    "type": "int",
+    "default": 5,
+    "hint": "语义搜索返回的最大结果数，范围：1-50"
+  },
+  "embedding_provider": {
+    "description": "嵌入提供者",
+    "type": "string",
+    "default": "local",
+    "hint": "选择 local 使用本地模型，或 api 使用远程API"
+  },
+  "embedding_api_base": {
+    "description": "嵌入 API 地址",
+    "type": "string",
+    "default": "http://localhost:11434/v1",
+    "hint": "当使用API嵌入时，填写API服务地址"
+  },
+  "embedding_api_key": {
+    "description": "嵌入 API 密钥",
+    "type": "string",
+    "default": "",
+    "hint": "当使用API嵌入时，填写API密钥（留空表示不需要）"
+  },
+  "embedding_model": {
+    "description": "嵌入模型名称",
+    "type": "string",
+    "default": "AI-ModelScope/bge-small-zh-v1.5",
+    "hint": "默认使用轻量的 bge-small-zh-v1.5 模型"
+  },
+  "rerank_enabled": {
+    "description": "是否启用重排",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后对搜索结果进行重排序以提高准确性"
+  },
+  "rerank_provider": {
+    "description": "重排提供者",
+    "type": "string",
+    "default": "api",
+    "hint": "选择 api 使用远程API，或 local 使用本地模型"
+  },
+  "rerank_api_base": {
+    "description": "重排 API 地址",
+    "type": "string",
+    "default": "http://localhost:11434/v1",
+    "hint": "当使用API重排时，填写API服务地址"
+  },
+  "rerank_api_key": {
+    "description": "重排 API 密钥",
+    "type": "string",
+    "default": "",
+    "hint": "当使用API重排时，填写API密钥（留空表示不需要）"
+  },
+  "rerank_model": {
+    "description": "重排模型名称",
+    "type": "string",
+    "default": "bge-reranker-v2-m3",
+    "hint": "使用的重排序模型名称"
+  },
+  "rerank_top_k": {
+    "description": "重排返回结果数",
+    "type": "int",
+    "default": 5,
+    "hint": "重排序后返回的最大结果数，范围：1-20"
+  },
+  "max_system_prompt_tokens": {
+    "description": "系统提示词最大 Token 数",
+    "type": "int",
+    "default": 100000,
+    "hint": "建议：128K 模型设为 100000，留 28000 给 AstrBot 短期对话，范围：1000-500000"
+  },
+  "enable_token_control": {
+    "description": "是否启用 Token 控制",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后自动管理提示词长度，超出限制时按优先级裁剪"
+  },
+  "soul_priority": {
+    "description": "人设优先级",
+    "type": "int",
+    "default": 10,
+    "hint": "SOUL.md 人格定义的优先级，范围：1-20"
+  },
+  "agents_priority": {
+    "description": "代理/工具优先级",
+    "type": "int",
+    "default": 9,
+    "hint": "AGENTS.md 行为规则的优先级，范围：1-20"
+  },
+  "profile_priority": {
+    "description": "用户档案优先级",
+    "type": "int",
+    "default": 8,
+    "hint": "PROFILE.md 用户画像的优先级，范围：1-20"
+  },
+  "group_rules_priority": {
+    "description": "群规则优先级",
+    "type": "int",
+    "default": 7,
+    "hint": "群组规则的优先级，范围：1-20"
+  },
+  "group_members_priority": {
+    "description": "群成员优先级",
+    "type": "int",
+    "default": 6,
+    "hint": "群成员列表的优先级，范围：1-20"
+  },
+  "cross_group_tasks_priority": {
+    "description": "跨群任务优先级",
+    "type": "int",
+    "default": 5,
+    "hint": "跨群组待办任务的优先级，范围：1-20"
+  },
+  "recent_notes_priority": {
+    "description": "近期笔记优先级",
+    "type": "int",
+    "default": 4,
+    "hint": "最近日记的优先级，范围：1-20"
+  },
+  "sop_priority": {
+    "description": "SOP 优先级",
+    "type": "int",
+    "default": 3,
+    "hint": "标准操作流程的优先级，范围：1-20"
+  },
+  "retrieval_guidance_priority": {
+    "description": "检索指导优先级",
+    "type": "int",
+    "default": 2,
+    "hint": "检索指导信息的优先级，范围：1-20"
+  },
+  "graph_recall_priority": {
+    "description": "知识图谱召回优先级",
+    "type": "int",
+    "default": 10,
+    "hint": "建议：10，高于 SOP 但低于核心准则，范围：1-20"
+  },
+  "graph_recall_limit": {
+    "description": "知识图谱单次召回的最大关系条数",
+    "type": "int",
+    "default": 15,
+    "hint": "限制单次对话中注入的最相关实体关系数量，防止 Token 爆炸，范围：1-50"
+  },
+  "graph_keyword_search_limit": {
+    "description": "知识图谱每个关键词召回的实体数量限制",
+    "type": "int",
+    "default": 3,
+    "hint": "控制每个关键词从图谱中召回的实体数量，范围：1-10"
+  },
+  "message_sanitizer_enabled": {
+    "description": "是否启用消息清洗器",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后自动清洗消息中的格式问题"
+  },
+  "message_buffer_enabled": {
+    "description": "是否启用消息缓冲器",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后缓冲消息以优化处理性能"
+  },
+  "tool_decoration_enabled": {
+    "description": "是否启用工具装饰器",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后为工具调用添加装饰信息"
+  },
+  "tool_compact_enabled": {
+    "description": "是否启用工具结果微压缩防爆机制",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后对超长工具返回结果进行智能压缩，防止 Token 爆炸"
+  },
+  "tool_max_tokens": {
+    "description": "工具返回结果的最大 Token 数量",
+    "type": "int",
+    "default": 8000,
+    "hint": "超过此值将触发微压缩，范围：1000-128000"
+  },
+  "tool_default_strategy": {
+    "description": "默认压缩策略",
+    "type": "string",
+    "default": "head_tail",
+    "hint": "truncate (截断尾部) 或 head_tail (保留头尾)"
+  },
+  "custom_skills_dir": {
+    "description": "自定义技能目录路径",
+    "type": "string",
+    "default": "",
+    "hint": "用于覆盖或扩展内置技能的目录路径，留空则不使用"
+  },
+  "enable_skill_recommendation": {
+    "description": "是否启用技能智能推荐注入",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后根据上下文自动推荐相关技能"
+  },
+  "skill_recommendation_limit": {
+    "description": "每次推荐的最大技能数量",
+    "type": "int",
+    "default": 2,
+    "hint": "每次推荐的技能数量上限，范围：1-5"
+  },
+  "enable_tool_whitelist": {
+    "description": "是否启用技能工具白名单",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后限制 LLM 在执行技能时只能使用指定工具"
+  },
+  "session_locks_enabled": {
+    "description": "是否启用会话锁",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后防止同一用户的并发请求冲突"
+  },
+  "concurrency_control_enabled": {
+    "description": "是否启用全局并发控制",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后限制全局最大并发 LLM 请求数"
+  },
+  "max_concurrent_llm": {
+    "description": "最大并发 LLM 请求数",
+    "type": "int",
+    "default": 5,
+    "hint": "同时处理的最大 LLM 请求数量，范围：1-20"
+  },
+  "session_timeout_seconds": {
+    "description": "会话超时时间（秒）",
+    "type": "float",
+    "default": 3600.0,
+    "hint": "会话无活动后的超时时间，范围：60-86400 秒"
+  },
+  "max_pending_per_session": {
+    "description": "每个会话最大排队数",
+    "type": "int",
+    "default": 10,
+    "hint": "每个会话最多排队的消息数量，范围：1-50"
+  },
+  "reflection_message_threshold": {
+    "description": "触发记忆反思的消息数量阈值",
+    "type": "int",
+    "default": 15,
+    "hint": "累积多少条消息后触发记忆反思，范围：5-100"
+  },
+  "reflection_time_threshold": {
+    "description": "触发记忆反思的时间阈值（秒）",
+    "type": "int",
+    "default": 1800,
+    "hint": "默认30分钟，范围：60-7200"
+  },
+  "reflection_topic_threshold": {
+    "description": "话题识别阈值",
+    "type": "float",
+    "default": 0.7,
+    "hint": "判断话题相似度的阈值，范围：0.0-1.0"
+  },
+  "reflection_recent_messages_limit": {
+    "description": "反思时考虑的最新消息数量",
+    "type": "int",
+    "default": 20,
+    "hint": "反思时分析的最新消息数量，范围：5-100"
+  },
+  "memory_archive_score_cap": {
+    "description": "记忆归档分数上限",
+    "type": "float",
+    "default": 15.0,
+    "hint": "控制记忆归档的严格程度，范围：5.0-20.0"
+  },
+  "backup_retention_days": {
+    "description": "备份文件保留天数",
+    "type": "int",
+    "default": 7,
+    "hint": "自动备份文件的保留时间，范围：1-30"
+  },
+  "llm_extraction_threshold": {
+    "description": "触发LLM记忆提取的消息数量阈值",
+    "type": "int",
+    "default": 10,
+    "hint": "累积多少条消息后触发LLM提取记忆，范围：5-50"
+  },
+  "max_file_locks": {
+    "description": "文件锁缓存最大数量",
+    "type": "int",
+    "default": 100,
+    "hint": "并发文件操作时的锁缓存大小，范围：10-500"
+  },
+  "index_cache_timeout": {
+    "description": "索引缓存超时时间（秒）",
+    "type": "int",
+    "default": 300,
+    "hint": "索引缓存的有效期，范围：60-3600"
+  },
+  "admin_uids": {
+    "description": "管理员UID列表",
+    "type": "list",
+    "default": [],
+    "hint": "可访问调试命令等敏感功能的用户UID列表"
+  },
+  "nightly_maintenance_inactivity_minutes": {
+    "description": "夜间维护触发无活动时间阈值（分钟）",
+    "type": "int",
+    "default": 60,
+    "hint": "默认60分钟无活动后触发夜间维护，范围：10-240"
+  },
+  "nightly_maintenance_enabled": {
+    "description": "是否启用夜间中央索引维护管线",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后自动在夜间进行索引维护"
+  },
+  "debug_mode": {
+    "description": "是否启用调试模式",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后输出详细运行日志"
+  },
+  "web_search_enabled": {
+    "description": "是否启用网页搜索工具",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后 AI 可以通过 SearXNG 搜索引擎获取互联网最新信息"
+  },
+  "searxng_base_url": {
+    "description": "SearXNG 搜索引擎地址",
+    "type": "string",
+    "default": "",
+    "hint": "自托管 SearXNG 搜索引擎的地址，如果没有部署请留空或填写其他可用地址"
+  },
+  "searxng_secret": {
+    "description": "SearXNG 密钥（可选）",
+    "type": "string",
+    "default": "",
+    "hint": "SearXNG 的访问密钥，用于高级功能（留空表示不需要）"
+  },
+  "searxng_default_engines": {
+    "description": "默认启用的搜索引擎",
+    "type": "string",
+    "default": "google,bing,duckduckgo",
+    "hint": "逗号分隔的搜索引擎列表，可选：google, bing, duckduckgo, baidu, wikipedia 等"
+  },
+  "searxng_max_results": {
+    "description": "SearXNG 最大搜索结果数",
+    "type": "int",
+    "default": 10,
+    "hint": "每次搜索返回的最大结果数，范围：1-50"
+  },
+  "searxng_timeout": {
+    "description": "SearXNG 请求超时时间（秒）",
+    "type": "int",
+    "default": 10,
+    "hint": "搜索请求的超时时间，范围：5-60 秒"
+  },
+  "search_archive_enabled": {
+    "description": "是否启用搜索结果归档",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后自动将 1% 的重要搜索结果归档到数据库"
+  },
+  "search_archive_threshold": {
+    "description": "归档判定阈值",
+    "type": "float",
+    "default": 0.8,
+    "hint": "控制归档的严格程度，范围：0.5-0.95，越高越严格（只有非常重要的信息才归档）"
+  },
+  "memory_encryption_enabled": {
+    "description": "是否启用记忆内容加密存储",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后加密存储记忆内容以保护隐私"
+  },
+  "learning_mode_enabled": {
+    "description": "是否启用学习模式功能",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后 AI 可以主动记录用户分享的知识"
+  },
+  "learning_auto_extract_entities": {
+    "description": "自动提取实体和关系",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后在学习模式下自动从对话中提取知识实体"
+  },
+  "learning_conflict_detection": {
+    "description": "知识冲突检测",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后检测新知识与现有知识的冲突"
+  },
+  "learning_max_pending_items": {
+    "description": "最大待确认知识数量",
+    "type": "int",
+    "default": 10,
+    "hint": "待确认的知识条目上限，范围：1-100"
+  },
+  "teaching_mode_enabled": {
+    "description": "是否启用授课模式功能",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后用户可以进入授课模式向 AI 传授知识"
+  },
+  "teaching_strict_mode": {
+    "description": "授课模式下严格禁止知识库修改",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后授课模式中 AI 只能记录不能修改已有知识"
+  },
+  "web_ui_enabled": {
+    "description": "是否启用 Web UI 管理面板",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后会在插件启动时自动启动 Web 管理界面"
+  },
+  "web_api_port": {
+    "description": "Web UI 后端 API 端口",
+    "type": "int",
+    "default": 18111,
+    "hint": "后端 FastAPI 服务端口，范围：1024-65535"
+  },
+  "web_frontend_port": {
+    "description": "Web UI 前端界面端口",
+    "type": "int",
+    "default": 19111,
+    "hint": "前端 Streamlit 服务端口，范围：1024-65535"
+  },
+  "smart_split_enabled": {
+    "description": "是否启用智能分段发送",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后由插件接管消息发送，实现拟人化分段发送，解决并发穿插问题"
+  },
+  "smart_split_only_llm": {
+    "description": "仅对 LLM 结果进行分段",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后仅对 AI 生成的回复进行分段，系统命令输出（如 /whoami）将立即完整显示"
+  },
+  "smart_split_regex": {
+    "description": "智能分段正则表达式",
+    "type": "string",
+    "default": ".*?(?:\\n+|[。？！~…]{2,})|.+$",
+    "hint": "用于定义在哪种标点符号或换行符处进行切断，默认按连续换行或连续标点分段"
+  },
+  "smart_split_cleanup_regex": {
+    "description": "智能分段清理正则表达式",
+    "type": "string",
+    "default": "^\\s+|\\s+$",
+    "hint": "用于在分段后移除段落开头和结尾的空白字符，留空则不清理"
+  },
+  "smart_split_typing_speed": {
+    "description": "模拟打字速度（秒/字符）",
+    "type": "float",
+    "default": 0.08,
+    "hint": "每个字符所需的模拟打字时间（秒），例如 0.08 表示 10 个字停顿 0.8 秒，范围：0.01-0.5"
+  },
+  "smart_split_min_delay": {
+    "description": "分段最小延迟（秒）",
+    "type": "float",
+    "default": 1.5,
+    "hint": "无论句子多短，最少停顿时间，范围：0.1-3.0"
+  },
+  "smart_split_max_delay": {
+    "description": "分段最大延迟（秒）",
+    "type": "float",
+    "default": 3.5,
+    "hint": "无论句子多长，最多停顿时间，防止长篇大论等待过久，范围：1.0-10.0"
+  },
+  "smart_split_random_factor": {
+    "description": "延迟随机波动因子",
+    "type": "float",
+    "default": 0.2,
+    "hint": "在计算出的延迟基础上增加随机波动（0-1），0.2 表示 ±20% 波动，范围：0.0-0.5"
+  },
+  "smart_split_long_text_threshold": {
+    "description": "长文本判定阈值（字符数）",
+    "type": "int",
+    "default": 150,
+    "hint": "超过此字符数的文本视为长文本，使用长文本分段策略。范围：50-1000"
+  },
+  "smart_split_long_text_pattern": {
+    "description": "长文本分段正则表达式",
+    "type": "string",
+    "default": "\\n{2,}",
+    "hint": "长文本的分段规则，默认按双换行符分段。建议使用 \\n{2,} 或 \\n\\n"
+  },
+  "smart_split_group_reply": {
+    "description": "群聊引用功能",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后：被@触发时自动引用触发消息；主动回复时由AI智能判断是否引用特定消息"
+  },
+  "active_reply_enabled": {
+    "description": "启用群聊主动回复",
+    "type": "bool",
+    "default": false,
+    "hint": "主开关，开启后支持在群聊中主动回复（无需@）"
+  },
+  "ar_name_wakeup": {
+    "description": "启用群内称呼唤醒",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后可通过群内称呼（如管家名字）唤醒，无需@"
+  },
+  "ar_task_sniffing": {
+    "description": "启用活跃任务嗅探",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后当群聊内容命中 GROUP_PROFILE.md 中的活跃任务时触发回复"
+  },
+  "ar_continuous_dialogue": {
+    "description": "启用连续对话智能判定",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后在注意力窗口内支持上下文追问"
+  },
+  "ar_debounce_seconds": {
+    "description": "防抖窗口时间（秒）",
+    "type": "int",
+    "default": 3,
+    "hint": "期间无新消息则打包处理，范围：1-30"
+  },
+  "ar_max_queue_size": {
+    "description": "打包队列最大消息数",
+    "type": "int",
+    "default": 10,
+    "hint": "满载立即处理，范围：1-50"
+  },
+  "ar_attention_window_minutes": {
+    "description": "注意力窗口时间（分钟）",
+    "type": "int",
+    "default": 2,
+    "hint": "AI发送消息后重置此窗口，范围：1-10"
+  },
+  "ar_attention_window_messages": {
+    "description": "注意力窗口消息条数上限",
+    "type": "int",
+    "default": 10,
+    "hint": "超过则结束主动回复状态，范围：1-50"
+  },
+  "ar_intent_model_provider": {
+    "description": "意图判定小模型提供商ID",
+    "type": "string",
+    "default": "",
+    "hint": "留空则使用默认大模型进行意图判定"
+  },
+  "ar_context_messages": {
+    "description": "意图判定上下文消息数",
+    "type": "int",
+    "default": 10,
+    "hint": "提供给小模型的上下文消息数量，范围：5-30"
+  },
+  "ar_hard_stop_words": {
+    "description": "硬打断词列表",
+    "type": "string",
+    "default": "退下，闭嘴，滚，消失，别说话，不用了，算了，没事了",
+    "hint": "逗号分隔，收到这些词立即结束主动回复状态"
+  },
+  "media_auto_save_enabled": {
+    "description": "自动保存收到的图片和文件",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后将完全禁用媒体保存功能，但不影响已有文件的检索"
+  },
+  "media_save_to_memory": {
+    "description": "保存媒体时自动生成图片描述",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后会自动调用 Vision AI 识别图片内容，需要配置 Vision Provider"
+  },
+  "media_max_image_size_mb": {
+    "description": "单张图片最大大小（MB）",
+    "type": "int",
+    "default": 20,
+    "hint": "超过此大小的图片将被拒绝保存，范围：1-100MB"
+  },
+  "media_max_file_size_mb": {
+    "description": "单个文件最大大小（MB）",
+    "type": "int",
+    "default": 20,
+    "hint": "超过此大小的文件将被拒绝保存，范围：1-500MB"
+  },
+  "media_allowed_file_types": {
+    "description": "允许保存的文件类型",
+    "type": "string",
+    "default": "txt,md,doc,docx,wps,xls,xlsx,et,csv,ppt,pptx,pdf,jpg,jpeg,png,gif,webp,bmp",
+    "hint": "逗号分隔的文件扩展名列表，留空表示允许所有类型"
+  },
+  "media_retention_days": {
+    "description": "媒体文件保留天数",
+    "type": "int",
+    "default": 30,
+    "hint": "超过此天数的文件将自动删除，0 表示永久保留，范围：0-3650 天"
+  },
+  "heartbeat_inactivity_threshold": {
+    "description": "Heartbeat 复盘不活跃阈值（秒）",
+    "type": "int",
+    "default": 3600,
+    "hint": "用户不活跃超过此时间后触发后台复盘，范围：300-7200 秒"
+  },
+  "graph_consolidation_max_time": {
+    "description": "知识图谱整合最大时间（分钟）",
+    "type": "int",
+    "default": 25,
+    "hint": "夜间知识图谱整理的最大执行时间，范围：5-60 分钟"
+  },
+  "graph_consolidation_max_diaries": {
+    "description": "每晚处理的最大日记数",
+    "type": "int",
+    "default": 10,
+    "hint": "每个用户每晚最多处理的日记文件数量，范围：1-50"
+  },
+  "llm_call_timeout": {
+    "description": "LLM 调用超时时间（秒）",
+    "type": "int",
+    "default": 60,
+    "hint": "LLM API 调用的超时时间，范围：10-300 秒"
+  },
+  "require_delete_confirmation": {
+    "description": "删除文件时是否需要用户通过 /delete 命令二次确认",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后 AI 删除文件时会挂起操作并等待用户回复 /delete 确认，关闭后可直接删除（高危操作，建议保持开启）"
+  }
+}

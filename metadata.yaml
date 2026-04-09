@@ -1,0 +1,6 @@
+name: astrbot_plugin_scriptor
+display_name: 灵笔司书
+description: AstrBot 长期记忆插件 | Scriptor (灵笔司书) 是一个基于 AstrBot 框架的 AI 管家插件，提供跨越个体与群体的通用记忆管理与智能交互服务。通过多层次记忆系统、跨平台身份管理、渐进式披露架构等核心技术，实现拟人化、个性化、智能化的管家式交互体验。
+author: ysf7762-dev
+version: 1.0.0
+repo: https://github.com/ysf7762-dev/astrbot_plugin_scriptor

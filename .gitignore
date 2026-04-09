@@ -1,0 +1,102 @@
+# .gitignore for Scriptor Project
+# Generated: 2026-03-29
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Data files (sensitive, should not be committed)
+data/*.db
+data/*.sqlite
+data/*.json
+data/temp/
+data/backups/
+
+# User profiles and group memories (private data)
+profiles/
+groups/
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# Web UI password (sensitive)
+.web_ui_password
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# Archive files
+*.tar.gz
+*.zip
+backups/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Node.js (web frontend)
+node_modules/
+
+# Type checking
+.mypy_cache/
+
+# Generated reports
+quality_check_report.json
+*_REPORT.md
+AUTOMATED_BUILD_SUMMARY.md
+DOCUMENTATION_COMPLETION_SUMMARY.md

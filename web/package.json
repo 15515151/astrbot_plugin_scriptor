@@ -1,0 +1,30 @@
+{
+  "name": "scriptor-web-ui",
+  "version": "1.0.0",
+  "description": "灵笔司书 Web UI - Vue 3 + Vuetify",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0",
+    "pinia": "^2.1.7",
+    "vuetify": "^3.5.9",
+    "@mdi/font": "^7.4.47",
+    "axios": "^1.6.8",
+    "md-editor-v3": "^4.12.1",
+    "@vueuse/core": "^10.9.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.0",
+    "vue-tsc": "^2.0.7",
+    "sass": "^1.72.0",
+    "vite-plugin-vuetify": "^2.0.3"
+  }
+}

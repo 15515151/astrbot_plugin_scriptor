@@ -1,0 +1,277 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "astrbot-plugin-scriptor"
+version = "1.0.0"
+description = "灵笔司书 - AstrBot 长期记忆插件 | 基于 Scriptor 体系的多角色跨群体 AI 智能管家记忆系统"
+readme = "README.md"
+license = { text = "AGPL-3.0" }
+requires-python = ">=3.9"
+authors = [
+    { name = "ysf7762-dev" }
+]
+keywords = [
+    "astrbot",
+    "plugin",
+    "memory",
+    "ai",
+    "chatbot"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 (AGPL-3.0)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "pydantic>=2.0.0,<3.0.0",
+    "tiktoken>=0.5.0,<1.0.0",
+    "chromadb>=0.4.22,<0.6.0",
+    "sentence-transformers>=2.2.2,<4.0.0",
+    "modelscope>=1.10.0,<2.0.0",
+    "openai>=1.0.0,<2.0.0",
+    "tantivy>=0.21.0,<1.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "openpyxl>=3.1.0,<4.0.0",
+    "xlrd>=2.0.1,<3.0.0",
+    "fastapi>=0.100.0,<1.0.0",
+    "uvicorn>=0.23.0,<1.0.0",
+    "requests>=2.31.0,<3.0.0",
+    "slowapi>=0.1.9,<1.0.0",
+    "psutil>=5.9.0,<7.0.0",
+    "cryptography>=41.0.0,<44.0.0",
+    "bcrypt>=4.0.0,<5.0.0",
+    "aiohttp>=3.9.0,<4.0.0",
+    "httpx>=0.24.0,<1.0.0",
+    "beautifulsoup4>=4.12.0,<5.0.0",
+    "markdownify>=0.11.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "pytest-timeout>=2.2.0",
+    "flake8>=6.0.0",
+    "flake8-bugbear>=23.0.0",
+    "flake8-comprehensions>=3.0.0",
+    "flake8-simplify>=0.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+web = [
+    # Web UI 依赖已包含在主要依赖中
+]
+
+[project.urls]
+Homepage = "https://github.com/ysf7762-dev/astrbot_plugin_scriptor"
+Repository = "https://github.com/ysf7762-dev/astrbot_plugin_scriptor.git"
+Documentation = "https://github.com/ysf7762-dev/astrbot_plugin_scriptor#readme"
+
+# Hatch 构建配置
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+include = [
+    "*.py",
+    "*.yaml",
+    "*.json",
+    "*.md",
+    "core/**/*",
+    "mixins/**/*",
+    "tools/**/*",
+    "hooks/**/*",
+    "web/api.py",
+    "web/shared_state.py",
+    "web/dist/**/*",  # 构建后的前端产物
+    "templates/**/*",
+    "examples/**/*",
+    "knowledge_docs/**/*",
+    "docs/**/*",
+]
+
+exclude = [
+    "*.pyc",
+    "__pycache__",
+    ".pytest_cache",
+    ".git",
+    ".github",
+    "node_modules",
+    "web/src",
+    "web/node_modules",
+    "data",
+    "profiles",
+    "groups",
+    "backups",
+    "logs",
+]
+
+# 构建钩子配置
+[tool.hatch.build.hooks.custom]
+path = "scripts/build_hook.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# ========== pytest 配置 ==========
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "core", "tools"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--timeout=60",
+    "--timeout-method=thread",
+]
+markers = [
+    "unit: 单元测试（快速执行）",
+    "integration: 集成测试（较慢）",
+    "slow: 慢速测试",
+    "async: 异步测试",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# ========== coverage.py 配置 ==========
+[tool.coverage.run]
+source = ["core", "mixins", "tools", "hooks"]
+omit = [
+    "*/__pycache__/*",
+    "*/tests/*",
+    "*/.pytest_cache/*",
+    "*/node_modules/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
+
+# ========== black 配置 ==========
+[tool.black]
+line-length = 120
+target-version = ["py39", "py310", "py311", "py312", "py313"]
+include = "\\.pyi?$"
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | node_modules
+  | __pycache__
+)/
+'''
+
+# ========== isort 配置 ==========
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+known_first_party = ["core", "mixins", "tools", "hooks"]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
+
+# ========== flake8 配置 ==========
+[tool.flake8]
+max-line-length = 120
+extend-ignore = [
+    "E203",  # whitespace before :
+    "W503",  # line break before binary operator
+    "E501",  # line too long (black handles this)
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+    "build",
+    "dist",
+]
+per-file-ignores = [
+    "__init__.py:F401",
+]
+
+# ========== mypy 配置 ==========
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+ignore_missing_imports = true
+follow_imports = "normal"
+show_error_codes = true
+pretty = true
+exclude = [
+    '^.git/',
+    '^__pycache__/',
+    '^.pytest_cache/',
+    '^node_modules/',
+    '^build/',
+    '^dist/',
+    '^tests/',
+]
+
+# ========== ruff 配置 ==========
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["core", "mixins", "tools", "hooks"]
+extend-exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "C90", "N", "B", "A", "C4", "SIM", "ARG", "PTH", "RUF"]
+ignore = ["E501", "C901", "W191"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]

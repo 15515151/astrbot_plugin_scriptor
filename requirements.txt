@@ -1,0 +1,117 @@
+# requirements.txt
+# Scriptor v2.0 完整依赖清单
+#
+# ⚠️  重要提示：
+#   1. 推荐使用 install.bat 自动安装（智能检测环境）
+#   2. 或手动执行：先 pip install -r requirements-core.txt，再安装 C++ 扩展（见下方）
+#   3. 直接运行 "pip install -r requirements.txt" 可能在 Python 3.13+ 上失败
+#
+# 📦 依赖分类说明：
+#   [Core]    = 纯 Python，100% 有预编译 Wheel ✅
+#   [C++]     = 需要 C++ 编译器 ⚠️ (Python 3.13+ 无预编译版本)
+#   [Conda]   = 建议通过 Conda 安装（有预编译版本）✅
+
+# ============================================
+# [Core] 配置与验证
+# ============================================
+pydantic>=2.0.0,<3.0.0
+tiktoken>=0.5.0,<1.0.0
+
+# ============================================
+# [C++/Conda] 向量数据库 ⚠️
+# ============================================
+# chromadb 依赖 chroma-hnswlib（C++ 扩展）
+#
+# 安装方式（按推荐顺序）：
+#
+# 方式 A：使用 Conda（推荐 ✅）
+#   conda install -c conda-forge chroma-hnswlib -y
+#   pip install chromadb>=0.4.22,<0.6.0
+#
+# 方式 B：使用 pip + Visual C++ Build Tools
+#   1. 安装 VS Build Tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+#   2. 勾选 "使用 C++ 的桌面开发"
+#   3. 重启后执行: pip install chromadb>=0.4.22,<0.6.0
+#
+# 方式 C：自动脚本（最简单）
+#   运行: install.bat (Windows) 或 ./install.sh (Linux/Mac)
+#
+chromadb>=0.4.22,<0.6.0
+
+# ============================================
+# [Core] LLM 集成与嵌入模型
+# ============================================
+sentence-transformers>=2.2.2,<4.0.0
+modelscope>=1.10.0,<2.0.0
+openai>=1.0.0,<2.0.0
+
+# ============================================
+# [C++/Conda] 全文搜索引擎 ⚠️
+# ============================================
+# tantivy 同样包含 Rust 扩展，但通常有预编译 wheel
+# 如果安装失败，可尝试：
+#   pip install tantivy --only-binary :all:
+tantivy>=0.21.0,<1.0.0
+
+# ============================================
+# [Core] 数据处理
+# ============================================
+pandas>=2.0.0,<3.0.0
+openpyxl>=3.1.0,<4.0.0
+xlrd>=2.0.1,<3.0.0
+jieba>=0.42.1,<1.0.0              # 中文分词（BM25 搜索优化）
+
+# ============================================
+# [Core] Web UI 框架
+# ============================================
+fastapi>=0.100.0,<1.0.0
+uvicorn>=0.23.0,<1.0.0
+requests>=2.31.0,<3.0.0
+slowapi>=0.1.9,<1.0.0
+psutil>=5.9.0,<7.0.0
+
+# ============================================
+# [Core] 安全与加密
+# ============================================
+cryptography>=41.0.0,<44.0.0
+bcrypt>=4.0.0,<5.0.0
+
+# ============================================
+# [Core] Web Fetch 新功能（v2.0 新增）
+# ============================================
+aiohttp>=3.9.0,<4.0.0              # HTTP 客户端
+httpx>=0.24.0,<1.0.0               # HTTP 客户端（SearXNG 搜索）
+beautifulsoup4>=4.12.0,<5.0.0      # HTML 解析器
+markdownify>=0.11.0,<1.0.0         # HTML → Markdown 转换器
+
+# ============================================
+# [Core] 文档构建工具（可选）
+# ============================================
+sphinx>=7.0.0,<9.0.0
+sphinx-rtd-theme>=1.3.0,<3.0.0
+m2r2>=0.3.0,<1.0.0
+
+
+# ============================================
+# 🔧 故障排查指南
+# ============================================
+#
+# Q1: 出现 "Microsoft Visual C++ 14.0 or greater is required" 错误？
+# A: 说明你在 Python 3.13+ 上尝试编译 C++ 扩展。
+#    解决方案：
+#    • Windows: 运行 install.bat（自动用 Conda）
+#    • 或安装 Miniconda: https://docs.conda.io/en/latest/miniconda.html
+#
+# Q2: chromadb 安装成功但 import 失败？
+# A: 可能是 hnswlib.dll 缺失。尝试：
+#    conda install -c conda-forge chroma-hnswlib --force-reinstall
+#
+# Q3: 想快速测试，不想安装全部依赖？
+# A: 使用核心依赖文件：
+#    pip install -r requirements-core.txt
+#    （不包含向量数据库功能）
+#
+# Q4: Linux/Mac 用户？
+# C++ 扩展通常更容易编译。直接：
+#    pip install -r requirements.txt
+#    如果失败，安装 build-essential (Ubuntu) 或 Xcode Command Line Tools (Mac)

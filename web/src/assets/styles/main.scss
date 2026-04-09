@@ -1,0 +1,242 @@
+// 使用 Vuetify CSS 变量，支持主题切换
+:root {
+  --primary-color: rgb(var(--v-theme-primary));
+  --secondary-color: rgb(var(--v-theme-secondary));
+  --accent-color: rgb(var(--v-theme-accent));
+  --bg-color: rgb(var(--v-theme-background));
+  --surface-color: rgb(var(--v-theme-surface));
+  --border-color: rgb(var(--v-theme-border));
+  --text-color: rgb(var(--v-theme-on-surface));
+  --text-secondary: rgb(var(--v-theme-on-surface-variant));
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+#app {
+  height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.v-application {
+  background: var(--bg-color) !important;
+}
+
+.v-card {
+  background: var(--surface-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.v-navigation-drawer {
+  background: var(--surface-color) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.v-list-item--active {
+  background: rgba(10, 132, 255, 0.15) !important;
+}
+
+.v-list-item--active .v-list-item-title {
+  color: var(--primary-color) !important;
+}
+
+.v-text-field .v-field {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.v-text-field .v-label,
+.v-textarea .v-label,
+.v-select .v-label {
+  color: var(--text-color) !important;
+  opacity: 0.8 !important;
+}
+
+.v-text-field .v-label--active,
+.v-textarea .v-label--active,
+.v-select .v-label--active {
+  color: var(--primary-color) !important;
+  opacity: 1 !important;
+}
+
+.v-input--error .v-label {
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.v-text-field .v-field__outline {
+  color: var(--border-color) !important;
+}
+
+.v-text-field:hover .v-field__outline {
+  color: var(--primary-color) !important;
+}
+
+.v-text-field--focused .v-field__outline {
+  color: var(--primary-color) !important;
+}
+
+.v-btn--variant-outlined {
+  border-color: var(--border-color) !important;
+}
+
+.v-btn--variant-outlined:hover {
+  border-color: var(--primary-color) !important;
+  background: rgba(10, 132, 255, 0.1) !important;
+}
+
+.v-tabs-slider {
+  background: var(--primary-color) !important;
+}
+
+.v-tab--selected .v-tab__text {
+  color: var(--primary-color) !important;
+}
+
+.v-chip {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.v-slider-track__fill {
+  background: var(--primary-color) !important;
+}
+
+.v-slider-thumb {
+  background: var(--primary-color) !important;
+}
+
+.v-switch .v-switch__track {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.v-switch .v-switch__thumb {
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.v-switch--active .v-switch__track {
+  background: var(--primary-color) !important;
+}
+
+.v-switch--active .v-switch__thumb {
+  background: var(--primary-color) !important;
+}
+
+.v-progress-linear__determinate {
+  background: var(--primary-color) !important;
+}
+
+.v-progress-circular__underlay {
+  stroke: rgba(255, 255, 255, 0.1) !important;
+}
+
+.v-progress-circular__overlay {
+  stroke: var(--primary-color) !important;
+}
+
+.v-skeleton-loader {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.v-skeleton-loader__bone {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 20px rgba(10, 132, 255, 0.15);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-leave-to {
+  transform: translateX(100%);
+}
