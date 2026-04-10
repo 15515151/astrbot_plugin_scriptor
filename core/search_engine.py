@@ -527,7 +527,7 @@ class SearchEngine:
                             ("P_SOUL.md", "SOUL.md"),
                             ("P_MEMORY.md", "MEMORY.md"),
                             ("P_AGENTS.md", "AGENTS.md"),
-                            ("SOP.md", "SOP.md"),
+                            ("P_SOP.md", "SOP.md"),
                             ("ARCHIVE.md", "ARCHIVE.md"),
                         ]
                         for new_name, old_name in personal_files:
@@ -581,7 +581,7 @@ class SearchEngine:
                             ("GROUP.md", "GROUP.md"),
                             ("G_MEMORY.md", "MEMORY.md"),
                             ("G_PROFILE.md", "GROUP_PROFILE.md"),
-                            ("SOP.md", "SOP.md"),
+                            ("G_SOP.md", "SOP.md"),
                             ("ARCHIVE.md", "ARCHIVE.md"),
                         ]
                         for new_name, old_name in group_files:

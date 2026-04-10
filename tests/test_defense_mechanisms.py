@@ -270,9 +270,9 @@ summary: "合法的群组画像"
 
 
 def test_sop_creation_and_dynamic_indexing():
-    """测试 4: SOP.md 按需创建与动态索引"""
+    """测试 4: P_SOP.md 按需创建与动态索引"""
     print("\n" + "=" * 60)
-    print("测试 4: SOP.md 创建与动态索引集成")
+    print("测试 4: P_SOP.md 创建与动态索引集成")
     print("=" * 60)
 
     import importlib.util
@@ -299,53 +299,53 @@ def test_sop_creation_and_dynamic_indexing():
 
         indexer = ContextIndexer(data_dir, config=None)
 
-        # 步骤 1: 初始状态 - 无 SOP.md
+        # 步骤 1: 初始状态 - 无 P_SOP.md
         context_map_before = indexer.build_context_map(test_uid, "private", include_skills=False)
-        assert "SOP.md" not in context_map_before, "初始状态不应有 SOP.md"
-        print("✓ 初始状态确认: 用户目录中无 SOP.md")
+        assert "P_SOP.md" not in context_map_before, "初始状态不应有 P_SOP.md"
+        print("✓ 初始状态确认: 用户目录中无 P_SOP.md")
 
-        # 步骤 2: 模拟 AI 创建 SOP.md（按需创建 + 带 YAML 头）
+        # 步骤 2: 模拟 AI 创建 P_SOP.md（按需创建 + 带 YAML 头）
         sop_content = """---
 summary: "技术文档写作工作流总结"
 keywords: ["写作", "Markdown", "SOP", "工作流"]
 created: "2026-04-03"
 ---
 
-# 技术文档写作 SOP
+# 个人标准操作流程 (P_SOP)
 
-## 1. 写作前准备
-- 明确文档目标受众
-- 准备参考资料
+## 流程：技术文档写作
 
-## 2. 结构规范
-- 使用标准的 Markdown 格式
-- 包含清晰的层级标题
+### 触发条件
+- 当用户需要编写技术文档时
 
-## 3. 质量检查要点
-- 检查拼写和语法
-- 验证代码示例可运行"""
+### 执行步骤
+1. 明确文档目标受众
+2. 准备参考资料
+3. 使用标准的 Markdown 格式
+4. 检查拼写和语法
+5. 验证代码示例可运行"""
 
-        sop_file = user_profile_dir / "SOP.md"
+        sop_file = user_profile_dir / "P_SOP.md"
         sop_file.write_text(sop_content, encoding="utf-8")
-        print("✓ 模拟 AI 创建 SOP.md（含标准 YAML 头）")
+        print("✓ 模拟 AI 创建 P_SOP.md（含标准 YAML 头）")
 
-        # 步骤 3: 再次构建索引 - 应该能看到新创建的 SOP.md
+        # 步骤 3: 再次构建索引 - 应该能看到新创建的 P_SOP.md
         context_map_after = indexer.build_context_map(test_uid, "private", include_skills=False)
-        assert "SOP.md" in context_map_after, "创建后应在索引中看到 SOP.md"
+        assert "P_SOP.md" in context_map_after, "创建后应在索引中看到 P_SOP.md"
 
         # 打印实际内容用于调试
         print(f"\n📋 实际生成的索引内容:\n{context_map_after}\n")
 
         # 验证索引器能正确提取 YAML summary（从节点级别验证）
         nodes = indexer._scan_personal_nodes(test_uid)
-        sop_nodes = [n for n in nodes if n.display_name == "SOP.md"]
-        assert len(sop_nodes) == 1, "应找到且仅找到一个 SOP.md 节点"
+        sop_nodes = [n for n in nodes if n.display_name == "P_SOP.md"]
+        assert len(sop_nodes) == 1, "应找到且仅找到一个 P_SOP.md 节点"
         assert (
             sop_nodes[0].description == "技术文档写作工作流总结"
         ), f"描述应为 YAML summary，实际为: {sop_nodes[0].description}"
         print(f"✓ YAML 摘要提取成功: {sop_nodes[0].description}")
 
-    print("✅ 测试 4 通过: SOP 创建与动态索引集成正常")
+    print("✅ 测试 4 通过: P_SOP 创建与动态索引集成正常")
 
 
 def test_progressive_disclosure_index_generation():

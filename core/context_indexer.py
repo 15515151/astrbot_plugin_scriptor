@@ -60,12 +60,14 @@ class ContextIndexer:
         self._node_descriptions = {
             "P_PROFILE.md": "用户画像与核心偏好",
             "P_SOUL.md": "个人人格定义",
+            "P_SOP.md": "个人标准操作流程",
             "G_SOUL.md": "群组人格定义",
+            "G_SOP.md": "群组标准操作流程",
             "SOUL.md": "全局核心人格基座",
+            "SOP.md": "全局标准操作流程",
             "P_AGENTS.md": "个人代理设定",
             "P_MEMORY.md": "个人长期记忆",
             "MEMORY.md": "长期记忆与经验积累",
-            "SOP.md": "标准操作流程与知识库",
             "HEARTBEAT.md": "心跳复盘指令",
             "P_HEARTBEAT.md": "个人心跳指令",
             "G_HEARTBEAT.md": "群组心跳指令",
@@ -132,7 +134,7 @@ class ContextIndexer:
 
         return "Markdown 文档"
 
-    def _scan_personal_nodes(self, uid: str) -> List[ContextNode]:
+    def _scan_personal_nodes(self, uid: str, group_id: str = "private") -> List[ContextNode]:
         """扫描个人记忆目录"""
         nodes = []
         profile_dir = self.data_dir / "profiles" / uid
@@ -143,8 +145,8 @@ class ContextIndexer:
         priority_map = {
             "P_PROFILE.md": 10,
             "P_SOUL.md": 9,
+            "P_SOP.md": 7,
             "P_AGENTS.md": 8,
-            "SOP.md": 7,
             "P_MEMORY.md": 6,
             "HEARTBEAT.md": 5,
             "P_HEARTBEAT.md": 5,
@@ -158,8 +160,13 @@ class ContextIndexer:
             if not md_file.is_file():
                 continue
 
-            stat = md_file.stat()
             filename = md_file.name
+            
+            # 在群聊中不加载个人的 P_SOP.md
+            if group_id != "private" and filename == "P_SOP.md":
+                continue
+
+            stat = md_file.stat()
             rel_path = f"profiles/{uid}/{filename}"
 
             nodes.append(
@@ -212,6 +219,7 @@ class ContextIndexer:
             "G_GROUP.md": 10,
             "G_PROFILE.md": 9,
             "G_SOUL.md": 9,
+            "G_SOP.md": 7,
             "SOUL.md": 8,
             "G_MEMORY.md": 6,
             "MEMORY.md": 6,
@@ -220,7 +228,6 @@ class ContextIndexer:
             "G_TODO.md": 4,
             "TODO.md": 4,
             "NOTES.md": 3,
-            "SOP.md": 2,
         }
 
         for md_file in group_dir.glob("*.md"):
@@ -361,7 +368,7 @@ class ContextIndexer:
         """
         sections = []
 
-        personal_nodes = self._scan_personal_nodes(uid)
+        personal_nodes = self._scan_personal_nodes(uid, group_id)
         if personal_nodes:
             personal_nodes.sort(key=lambda x: (-x.priority, x.display_name))
             section = self._format_section("📚 个人记忆 (Personal Memory)", personal_nodes)

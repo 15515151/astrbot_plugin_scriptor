@@ -312,39 +312,49 @@ class PromptBuilder:
 - **权限**：可读可写 - 你可以自由编辑和创建新文件
 - **用途**：存储用户画像、长期记忆、个人笔记等
 
-### 🚀 自主进化机制 (Self-Evolution)
+### 🚀 SOP 流程管理规范
 
-当你发现以下情况时，应**主动创建或更新 SOP.md** 文件：
+#### 文件层级与命名
+- **个人级**：`@personal/P_SOP.md` - 个人专属的操作流程
+- **群组级**：`@group/G_SOP.md` - 群组共享的操作流程
+- **全局级**：`@root/SOP.md` - 全局通用的操作流程
 
-1. **总结工作流**：你发现某个重复性任务的最佳实践，希望记录下来供未来参考
-2. **技能补丁**：官方技能 (`skills/`) 的某些步骤不适合当前用户，你需要记录定制化修改
-3. **经验沉淀**：在对话中获得了有价值的经验教训，希望长期记住
-4. **快捷指令**：用户经常使用的复杂操作，你想简化为标准化流程
+#### 优先级规则
+- **私聊场景**：个人设定 > 全局设定
+- **群聊场景**：群组设定 > 全局设定
 
-#### SOP.md 创建规范（必须严格遵守）
+#### 新增流程（必须严格遵守）
+1. **唯一文件原则**：
+   - 个人流程**必须且只能**保存在 `@personal/P_SOP.md`
+   - 群组流程**必须且只能**保存在 `@group/G_SOP.md`
+   - 全局流程**必须且只能**保存在 `@root/SOP.md`
+   - **严禁**创建任何其他名称的 SOP 文件（如 `SOP_xxx.md`）
 
-**当你在用户目录下创建任何新的 `.md` 文件（特别是 SOP.md）时，必须在文件最顶部包含标准的 YAML 元数据头：**
+2. **追加格式**：
+   - 使用 `file_append` 工具将新流程追加到文件末尾
+   - 必须使用 `## 流程：[流程名称]` 作为二级标题
+   - 示例：
+     ```markdown
+     ## 流程：请假报备
+     - **触发条件**：当用户提到要请假时
+     - **执行步骤**：
+       1. 询问请假时间
+       2. 询问请假事由
+       3. 提醒用户在考勤系统提交
+     ```
 
+3. **修改流程**：
+   - 必须先使用 `file_read` 读取文件
+   - 使用 `file_edit` 或 `multi_edit` 工具进行精准修改
+   - **严禁**使用 `file_write` 覆盖整个文件
+
+#### YAML 元数据头（创建新文件时必须包含）
 ```yaml
 ---
-summary: "用一句话描述该文件的核心内容（用于目录索引显示）"
+summary: "用一句话描述该文件的核心内容"
 keywords: ["关键词1", "关键词2", "关键词3"]
-created: "2026-04-03"
+created: "2026-04-10"
 ---
-```
-
-**示例**：
-```markdown
----
-summary: "用户偏好总结：技术文档写作风格与格式要求"
-keywords: ["写作", "Markdown", "技术文档", "格式规范"]
-created: "2026-04-03"
----
-
-# 用户技术文档写作 SOP
-
-## 1. 核心原则
-- 使用简洁明了的语言...
 ```
 
 ### 📝 日常操作指南
@@ -712,14 +722,8 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         if graph_context:
             prompt_parts.append(graph_context)
 
-        sop_file = profile_dir / "SOP.md"
-        if sop_file.exists():
-            prompt_parts.append("# 个人知识库与标准流程(SOP)\n" + sop_file.read_text(encoding="utf-8"))
-
-        if group_id != "private":
-            group_sop_file = self.data_dir / "groups" / group_id / "SOP.md"
-            if group_sop_file.exists():
-                prompt_parts.append("# 群组知识库与标准流程(SOP)\n" + group_sop_file.read_text(encoding="utf-8"))
+        # SOP 文件已迁移到渐进式披露模式，通过 ContextIndexer 按需加载
+        # 不再全量注入 SOP.md / P_SOP.md / G_SOP.md
 
         bootstrap_file = profile_dir / "P_BOOTSTRAP.md"
         if bootstrap_file.exists():

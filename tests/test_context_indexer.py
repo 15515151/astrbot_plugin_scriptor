@@ -53,7 +53,7 @@ class TestContextIndexer:
         (profiles_dir / "PROFILE.md").write_text("# 用户画像\n## 基本信息\n姓名：张三", encoding="utf-8")
         (profiles_dir / "SOUL.md").write_text("# 人格定义\n## 核心准则", encoding="utf-8")
         (profiles_dir / "MEMORY.md").write_text("# 长期记忆\n## 重要事件", encoding="utf-8")
-        (profiles_dir / "SOP.md").write_text("# 标准操作流程", encoding="utf-8")
+        (profiles_dir / "P_SOP.md").write_text("# 个人标准操作流程", encoding="utf-8")
 
         # 创建 memory 子目录
         memory_dir = profiles_dir / "memory"

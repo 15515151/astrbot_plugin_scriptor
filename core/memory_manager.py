@@ -876,7 +876,7 @@ class MemoryManager:
             parts.append(f"# 个人画像\n{profile_file.read_text(encoding='utf-8')}")
 
         # 引入知识笔记/SOP (Knowledge Base)
-        sop_file = profile_dir / "SOP.md"
+        sop_file = profile_dir / "P_SOP.md"
         if sop_file.exists():
             parts.append(f"# 个人知识库与标准流程(SOP)\n{sop_file.read_text(encoding='utf-8')}")
 
@@ -890,7 +890,7 @@ class MemoryManager:
                 parts.append(f"# 群体成员\n{member_list}")
 
             # 群组知识库
-            group_sop_file = self._get_group_dir(group_id) / "SOP.md"
+            group_sop_file = self._get_group_dir(group_id) / "G_SOP.md"
             if group_sop_file.exists():
                 parts.append(f"# 群组知识库与标准流程(SOP)\n{group_sop_file.read_text(encoding='utf-8')}")
 

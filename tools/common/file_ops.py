@@ -197,7 +197,7 @@ def _check_read_only_directory(file_path: str) -> Optional[str]:
             return (
                 f"Error: 路径 `{file_path}` 属于只读目录（{readonly_dir}）。\n"
                 f"该目录下的文件为官方技能/模板文件，禁止修改、删除或覆写。\n"
-                f"如果你需要记录自定义技能或工作流经验，请在用户目录下创建 SOP.md 文件。"
+                f"如果你需要记录自定义技能或工作流经验，请在用户目录下创建 P_SOP.md 文件。"
             )
 
     return None
@@ -1327,9 +1327,16 @@ async def multi_edit(
         logger.warning(f"[Scriptor] multi_edit 拦截了对 {file_path} 的只读目录访问。")
         return readonly_error
 
-    is_global_path = file_path.startswith("global/") or file_path.startswith("/global/")
-
-    if is_global_path:
+    # VFS 路径解析
+    is_global_path = False
+    if _is_vfs_path(file_path):
+        resolved_path, is_virtual, vfs_error = await _resolve_vfs_path(file_path, event, plugin, check_permission=True)
+        if vfs_error:
+            return vfs_error
+        if is_virtual:
+            logger.debug(f"[VFS] 多重编辑虚拟路径: {file_path} -> {resolved_path}")
+    elif file_path.startswith("global/") or file_path.startswith("/global/"):
+        is_global_path = True
         if not plugin:
             return "Error: 无法访问全局目录，插件实例不可用"
         uid = _get_logical_uid(event, plugin)
@@ -1692,18 +1699,26 @@ async def file_grep(
     Returns:
         搜索结果
     """
-    try:
-        base_dir = _get_base_dir(event, plugin)
-    except RuntimeError as e:
-        return f"Error: {e}"
+    # VFS 路径解析
+    if path and _is_vfs_path(path):
+        search_root, is_virtual, vfs_error = await _resolve_vfs_path(path, event, plugin, check_permission=True)
+        if vfs_error:
+            return vfs_error
+        if is_virtual:
+            logger.debug(f"[VFS] 搜索虚拟路径: {path} -> {search_root}")
+    else:
+        try:
+            base_dir = _get_base_dir(event, plugin)
+        except RuntimeError as e:
+            return f"Error: {e}"
 
-    search_root = _resolve_file_path(base_dir, path) if path else base_dir
+        search_root = _resolve_file_path(base_dir, path) if path else base_dir
+
+        if not str(search_root).startswith(str(base_dir)):
+            return "Error: 路径不允许访问目录外的内容（安全限制）"
 
     if not search_root.exists():
         return f"Error: 路径不存在: {search_root}"
-
-    if not str(search_root).startswith(str(base_dir)):
-        return "Error: 路径不允许访问目录外的内容（安全限制）"
 
     try:
         flags = 0 if case_sensitive else re.IGNORECASE
@@ -1982,3 +1997,59 @@ async def file_delete(
         return f"Error: 权限不足，无法删除文件: {resolved_path}"
     except OSError as e:
         return f"Error: 删除文件失败: {e}"
+
+
+async def file_send(
+    event: "AstrMessageEvent",
+    file_path: str,
+    plugin: Optional[Any] = None,
+) -> Any:
+    """将 VFS 文件系统中的文件作为附件发送给用户。
+
+    Args:
+        event: AstrBot 消息事件
+        file_path: VFS 路径（如 @personal/P_SOUL.md）或物理路径
+        plugin: 可选的插件实例（用于 VFS 解析）
+
+    Returns:
+        发送结果或错误消息
+    """
+    from astrbot.api.message_components import File
+
+    # VFS 路径解析
+    if _is_vfs_path(file_path):
+        resolved_path, is_virtual, vfs_error = await _resolve_vfs_path(
+            file_path, event, plugin, check_permission=True
+        )
+        if vfs_error:
+            return vfs_error
+        if is_virtual:
+            logger.debug(f"[VFS] 发送虚拟路径文件: {file_path} -> {resolved_path}")
+    else:
+        try:
+            base_dir = _get_base_dir(event, plugin)
+        except RuntimeError as e:
+            return f"Error: {e}"
+
+        resolved_path = _resolve_file_path(base_dir, file_path)
+
+        if not str(resolved_path).startswith(str(base_dir)):
+            return "Error: 路径不允许访问目录外的内容（安全限制）"
+
+    if not resolved_path.exists():
+        return f"Error: 文件不存在: {file_path}"
+
+    if not resolved_path.is_file():
+        return f"Error: 路径不是文件: {file_path}"
+
+    try:
+        file_component = File(file=str(resolved_path), name=resolved_path.name)
+        await event.send_msg(message_chain=[file_component])
+        
+        logger.info(f"[file_send] 文件已发送: {resolved_path} (会话: {event.session_id})")
+        
+        return f"✅ 文件已发送: {resolved_path.name}"
+    
+    except Exception as e:
+        logger.error(f"[file_send] 发送文件失败: {e}")
+        return f"Error: 发送文件失败: {e}"

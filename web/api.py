@@ -895,7 +895,7 @@ async def get_profile_detail(uid: str):
         ("Personal_MEMORY.md", "MEMORY.md"),
         ("Personal_SOUL.md", "SOUL.md"),
         ("AGENTS.md", "AGENTS.md"),
-        ("SOP.md", "SOP.md"),
+        ("P_SOP.md", "P_SOP.md"),
     ]
 
     for new_name, old_name in personal_files:

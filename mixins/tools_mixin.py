@@ -266,10 +266,11 @@ class ToolsMixin(BaseMixin):
         【核心工具】当你从"上下文目录索引"中看到某个文件需要详细了解时，使用此工具读取。
 
         支持的路径格式：
-        - 用户记忆文件: "PROFILE.md", "MEMORY.md", "SOP.md" 等
+        - 用户记忆文件: "P_PROFILE.md", "P_MEMORY.md", "P_SOP.md" 等
+        - 群组文件: "G_SOP.md", "G_PROFILE.md" 等
+        - 全局文件: "SOP.md", "SOUL.md" 等
         - 技能手册（只读）: "skills/skill-name/SKILL.md"
         - 日记文件: "memory/2026-04-03.md"
-        - 全局文件: "global/Global_SOUL.md"
 
         Args:
             file_path (str): 文件路径（如 "PROFILE.md"、"skills/archive-manager/SKILL.md"）
@@ -306,7 +307,7 @@ class ToolsMixin(BaseMixin):
         - ⚠️ 如果覆写已有文件，系统会检查内容是否异常缩水（防止误删）
 
         【创建新文件规范】
-        当你创建新的 .md 文件（特别是 SOP.md）时，**必须在内容最顶部包含 YAML 元数据头**：
+        当你创建新的 .md 文件（特别是 P_SOP.md、G_SOP.md）时，**必须在内容最顶部包含 YAML 元数据头**：
         ```yaml
         ---
         summary: "一句话描述文件用途"
@@ -315,7 +316,7 @@ class ToolsMixin(BaseMixin):
         ```
 
         Args:
-            file_path (str): 文件路径（如 "SOP.md"、"NOTES.md"）
+            file_path (str): 文件路径（如 "P_SOP.md"、"G_SOP.md"、"NOTES.md"）
             content (str): 要写入的完整内容（包含 YAML 头）
 
         Returns:
@@ -500,6 +501,24 @@ class ToolsMixin(BaseMixin):
             )
 
         return result
+
+    @filter.llm_tool()
+    async def file_send_tool(self, event: AstrMessageEvent, file_path: str):
+        """
+        将工作文件作为附件发送给用户。
+
+        当用户要求查看、下载、发送某个文件时使用此工具。
+        文件会以真实的文件附件形式发送，用户可以下载到本地。
+
+        Args:
+            file_path (str): 文件路径（支持 VFS 路径，如 @personal/P_SOUL.md）
+
+        Returns:
+            发送结果
+        """
+        from ..tools.common.file_ops import file_send
+
+        return await file_send(event, file_path, self)
 
     @filter.llm_tool(name="web_search_tool")
     @compact_result(max_tokens=get_tool_max_tokens, strategy="head_tail")
