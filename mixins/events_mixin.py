@@ -169,7 +169,7 @@ class EventsMixin(BaseMixin):
         - 如果 AI 返回 null，表示综合回复，不引用任何消息
         - 如果 AI 返回具体的 message_id，则引用该消息
         """
-        from astrbot.core.message.components import Plain, Reply
+        from astrbot.api.message_components import Plain, Reply
 
         if not decision.reply_text:
             return
@@ -217,7 +217,7 @@ class EventsMixin(BaseMixin):
 
         session_id = f"{uid}_{group_id}"
         if hot_memory:
-            from ..core.token_utils import TokenEstimator
+            from ..tools.common.text_utils import TokenEstimator
 
             hot_tokens = TokenEstimator.estimate_tokens(hot_memory)
             if hot_tokens > self.config.max_system_prompt_tokens * 0.8:
@@ -377,8 +377,8 @@ class EventsMixin(BaseMixin):
                 f"⏰ 此确认请求将在 2 分钟后自动过期。"
             )
 
-            from astrbot.core.message.components import Plain
-            from astrbot.core.message.message_event_result import MessageChain
+            from astrbot.api.message_components import Plain
+            from astrbot.api.all import MessageChain
 
             message_chain = MessageChain([Plain(msg)])
             success = await self.context.send_message(event.session, message_chain)
@@ -420,7 +420,7 @@ class EventsMixin(BaseMixin):
             if not result or not result.chain:
                 return
 
-            from astrbot.core.message.components import Plain
+            from astrbot.api.message_components import Plain
 
             result_text = ""
             for comp in result.chain:
@@ -496,8 +496,8 @@ class EventsMixin(BaseMixin):
         - @ 提及转换
         - 消息引用
         """
-        from astrbot.core.message.components import Plain
-        from astrbot.core.message.message_event_result import MessageChain
+        from astrbot.api.message_components import Plain
+        from astrbot.api.all import MessageChain
 
         is_llm_result = result.is_llm_result() if hasattr(result, "is_llm_result") else False
         is_model_result = result.is_model_result() if hasattr(result, "is_model_result") else False
@@ -558,7 +558,7 @@ class EventsMixin(BaseMixin):
 
             if reply_to_id and len(new_chain.chain) > 0:
                 try:
-                    from astrbot.core.message.components import Reply
+                    from astrbot.api.message_components import Reply
 
                     new_chain.chain.insert(0, Reply(id=reply_to_id))
                     logger.debug(f"[Scriptor] 非分段模式引用注入: reply_to_id={reply_to_id}")
@@ -581,7 +581,7 @@ class EventsMixin(BaseMixin):
         - @ 提及转换
         - 消息引用
         """
-        from astrbot.core.message.components import Plain
+        from astrbot.api.message_components import Plain
 
         final_text = result_text
 
@@ -593,7 +593,7 @@ class EventsMixin(BaseMixin):
 
             if reply_to_id and len(new_chain.chain) > 0:
                 try:
-                    from astrbot.core.message.components import Reply
+                    from astrbot.api.message_components import Reply
 
                     new_chain.chain.insert(0, Reply(id=reply_to_id))
                     logger.debug(f"[Scriptor] 其他平台引用注入: reply_to_id={reply_to_id}")

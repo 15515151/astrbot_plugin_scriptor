@@ -160,7 +160,7 @@ class HelpersMixin(BaseMixin):
         umo = event.unified_msg_origin
         platform = umo.split(":")[0] if umo else "unknown"
 
-        from astrbot.core.message.components import At, AtAll, Plain
+        from astrbot.api.message_components import At, AtAll, Plain
 
         self_id = str(event.get_self_id())
 
@@ -224,8 +224,8 @@ class HelpersMixin(BaseMixin):
         if not message_chain:
             return
 
-        from astrbot.core.message.components import File as FileComponent
-        from astrbot.core.message.components import Image
+        from astrbot.api.message_components import File as FileComponent
+        from astrbot.api.message_components import Image
 
         sender_name = event.get_sender_name() or "User"
         sender_info = {"uid": uid, "name": sender_name}
@@ -300,8 +300,8 @@ class HelpersMixin(BaseMixin):
         """
         import re
 
-        from astrbot.core.message.components import At, Plain
-        from astrbot.core.message.message_event_result import MessageChain
+        from astrbot.api.message_components import At, Plain
+        from astrbot.api.all import MessageChain
 
         chain = MessageChain()
         pattern = r"\[@.*?\s*\(UID:\s*([a-zA-Z0-9_]+)\s*\)\]"
@@ -372,7 +372,7 @@ class HelpersMixin(BaseMixin):
         """
         智能组合多个提示词部分，确保总 token 不超限
         """
-        from ..core.token_utils import SmartMemoryTrimmer, TokenEstimator
+        from ..tools.common.text_utils import SmartMemoryTrimmer, TokenEstimator
 
         base_tokens = TokenEstimator.estimate_tokens(base_system_prompt)
         hot_memory_tokens = TokenEstimator.estimate_tokens(hot_memory)

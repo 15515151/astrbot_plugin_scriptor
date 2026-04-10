@@ -1537,19 +1537,49 @@ class PasswordUpdate(BaseModel):
 
 @app.put("/api/config", dependencies=[Depends(get_api_key)])
 async def update_config_endpoint(request: Request, data: ConfigUpdate):
-    """更新配置（保存到磁盘，需要重启生效，不需要 CSRF 验证，因为已有 API Key 验证）"""
+    """更新配置（双向同步到 AstrBot 配置文件，保存后重启生效）"""
     try:
         data_dir = get_data_dir_safe()
-        config_file = data_dir / "config.json"
-
-        # 保存配置到文件
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_file, "w", encoding="utf-8") as f:
+        
+        # 保存到 Scriptor 配置文件
+        scriptor_config_file = data_dir / "config.json"
+        scriptor_config_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(scriptor_config_file, "w", encoding="utf-8") as f:
             json.dump(data.config, f, ensure_ascii=False, indent=2)
-
+        
+        # 同时同步到 AstrBot 配置文件
+        astrbot_config_dir = data_dir.parent.parent / "config" / "astrbot_plugin_scriptor_config.json"
+        astrbot_config_file = astrbot_config_dir / "astrbot_plugin_scriptor_config.json"
+        astrbot_config_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 将嵌套配置转换为扁平配置
+        flat_config = _convert_nested_to_flat(data.config)
+        
+        with open(astrbot_config_file, "w", encoding="utf-8") as f:
+            json.dump(flat_config, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"[Scriptor WebUI] 配置已同步到 AstrBot 配置文件: {astrbot_config_file}")
+        
         return {"status": "success", "message": "配置已保存，重启 AstrBot 后生效"}
     except Exception as e:
+        logger.error(f"[Scriptor WebUI] 保存配置失败: {e}")
         raise HTTPException(status_code=500, detail=f"保存配置失败: {e!s}")
+
+
+def _convert_nested_to_flat(nested_config: dict, parent_key: str = "") -> dict:
+    """将嵌套配置转换为扁平配置（用于 AstrBot 配置文件）"""
+    flat_config = {}
+    
+    for key, value in nested_config.items():
+        full_key = f"{parent_key}{key}" if parent_key else key
+        
+        if isinstance(value, dict):
+            # 递归处理嵌套字典
+            flat_config.update(_convert_nested_to_flat(value, full_key + "_"))
+        else:
+            flat_config[full_key] = value
+    
+    return flat_config
 
 
 @app.put("/api/password", dependencies=[Depends(get_api_key)])

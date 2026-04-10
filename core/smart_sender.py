@@ -281,7 +281,7 @@ class SmartSender:
 
             if reply_to_id and message_chain is not None:
                 try:
-                    from astrbot.core.message.components import Reply
+                    from astrbot.api.message_components import Reply
 
                     if hasattr(message_chain, "chain"):
                         message_chain.chain.insert(0, Reply(id=reply_to_id))
@@ -333,7 +333,7 @@ class SmartSender:
                     # 首段引用注入
                     if is_first_segment and reply_to_id and message_chain is not None:
                         try:
-                            from astrbot.core.message.components import Reply
+                            from astrbot.api.message_components import Reply
 
                             if hasattr(message_chain, "chain"):
                                 message_chain.chain.insert(0, Reply(id=reply_to_id))

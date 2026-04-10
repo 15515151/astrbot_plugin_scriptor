@@ -369,8 +369,8 @@ class MediaToolsMixin(BaseMixin):
             if not media_path or not os.path.exists(media_path):
                 return f"媒体文件不存在: {filename}"
 
-            from astrbot.core.message.components import File, Image
-            from astrbot.core.message.message_event_result import MessageChain
+            from astrbot.api.message_components import File, Image
+            from astrbot.api.all import MessageChain
 
             if media_type == "image":
                 image = Image.fromFileSystem(media_path)

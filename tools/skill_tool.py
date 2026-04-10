@@ -699,8 +699,8 @@ class SkillExecutor:
     async def _notify_user(self, event, message: str):
         """向用户发送通知"""
         try:
-            from astrbot.core.message.components import Plain
-            from astrbot.core.message.message_event_result import MessageChain
+            from astrbot.api.message_components import Plain
+            from astrbot.api.all import MessageChain
 
             message_chain = MessageChain([Plain(message)])
             umo = event.unified_msg_origin

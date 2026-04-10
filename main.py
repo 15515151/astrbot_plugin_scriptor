@@ -44,8 +44,7 @@ from typing import Dict, Set
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.provider import LLMResponse, ProviderRequest
-from astrbot.api.star import Context, Star, register
-from astrbot.core.star.star_tools import StarTools
+from astrbot.api.star import Context, Star, StarTools, register
 
 from .core.active_reply_manager import ActiveReplyManager
 from .core.archives.ingestor import DataIngestor
@@ -122,11 +121,66 @@ class ScriptorPlugin(
         self.data_dir = StarTools.get_data_dir(self.name)
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        self.config = ScriptorConfigPydantic(**config)
+        # 首先尝试从正确的配置文件加载配置
+        import json
+        import os
+        
+        # 检查是否存在正确的配置文件（data/config/astrbot_plugin_scriptor_config.json）
+        # self.data_dir = data/plugin_data/astrbot_plugin_scriptor
+        # self.data_dir.parent.parent = data
+        correct_config_path = self.data_dir.parent.parent / "config" / "astrbot_plugin_scriptor_config.json"
+        logger.info(f"[Scriptor] 尝试加载配置文件：{correct_config_path}")
+        if correct_config_path.exists():
+            try:
+                # 使用 utf-8-sig 编码读取，自动处理 BOM
+                with open(correct_config_path, "r", encoding="utf-8-sig") as f:
+                    correct_config = json.load(f)
+                logger.info(f"[Scriptor] 从正确的配置文件加载成功")
+                logger.info(f"[Scriptor] web_search_enabled: {correct_config.get('web_search_enabled', 'N/A')}")
+                logger.info(f"[Scriptor] searxng_base_url: {correct_config.get('searxng_base_url', 'N/A')}")
+                # 直接使用字典，不转换为 AstrBotConfig
+                # 因为 ScriptorConfigPydantic 接受字典作为参数
+            except Exception as e:
+                logger.warning(f"[Scriptor] 从正确配置文件加载失败：{e}，使用默认配置")
+                correct_config = None
+        else:
+            logger.warning(f"[Scriptor] 配置文件不存在：{correct_config_path}")
+            correct_config = None
+        
+        # 使用正确的配置或默认配置
+        if correct_config:
+            # 使用 load_from_flat_dict 方法将扁平字典转换为嵌套配置
+            self.config = ScriptorConfigPydantic.load_from_flat_dict(correct_config)
+            
+            # 同步配置到 Scriptor 配置文件（用于 Scriptor WebUI）
+            try:
+                scriptor_config_file = self.data_dir / "config.json"
+                scriptor_config_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 将嵌套配置转换为扁平配置
+                flat_config = {}
+                for section_name, section_config in self.config.dict().items():
+                    if isinstance(section_config, dict):
+                        for key, value in section_config.items():
+                            flat_config[key] = value
+                    else:
+                        flat_config[section_name] = section_config
+                
+                with open(scriptor_config_file, "w", encoding="utf-8") as f:
+                    json.dump(flat_config, f, ensure_ascii=False, indent=2)
+                logger.info(f"[Scriptor] 配置已同步到 Scriptor 配置文件: {scriptor_config_file}")
+            except Exception as e:
+                logger.warning(f"[Scriptor] 同步配置到 Scriptor 配置文件失败: {e}")
+        else:
+            self.config = ScriptorConfigPydantic.load_from_flat_dict(config)
 
         from .tools.common.text_utils import set_global_config
 
         set_global_config(self.config)
+
+        # 配置同步跟踪
+        self._last_config_sync_time = 0
+        self._config_sync_interval = 300  # 5 分钟
 
         logger.info("[Scriptor] 初始化中...")
 
@@ -206,6 +260,10 @@ class ScriptorPlugin(
 
         self.media_manager = MediaManager(self.data_dir, self.config)
         logger.info("[Scriptor] 媒体资源管理器已初始化")
+
+        # 调试日志：输出配置值
+        logger.info(f"[Scriptor] 配置检查 - web_search_enabled: {self.config.web_search_enabled}")
+        logger.info(f"[Scriptor] 配置检查 - searxng_base_url: {self.config.searxng_base_url}")
 
         self.web_search_tool = None
         if self.config.web_search_enabled:
@@ -306,7 +364,7 @@ class ScriptorPlugin(
         此方法手动将 Mixin 工具的 handler 替换为绑定到 self 的方法。
         """
 
-        from astrbot.core.provider.register import llm_tools
+        llm_tool_manager = self.context.get_llm_tool_manager()
 
         main_module_path = self.__class__.__module__
         mixin_modules = {
@@ -316,7 +374,7 @@ class ScriptorPlugin(
         }
 
         rebound_count = 0
-        for func_tool in llm_tools.func_list:
+        for func_tool in llm_tool_manager.func_list:
             if func_tool.handler is None:
                 continue
 
@@ -501,7 +559,123 @@ class ScriptorPlugin(
         except asyncio.CancelledError:
             logger.warning("[Scriptor] 后台初始化被取消")
         except (OSError, RuntimeError) as e:
-            logger.error(f"[Scriptor] 后台初始化失败: {e}")
+            logger.error(f"[Scriptor] 后台初始化失败：{e}")
+
+    async def _sync_config_from_disk(self):
+        """
+        从磁盘同步配置（用于捕获通过 AstrBot 官方 Web UI 进行的配置更改）
+        
+        检查配置文件的修改时间，如果有变化则重新加载配置
+        """
+        import time
+        
+        current_time = time.time()
+        if current_time - self._last_config_sync_time < self._config_sync_interval:
+            return
+        
+        try:
+            config_file = self.data_dir / "config.json"
+            if not config_file.exists():
+                return
+            
+            # 检查文件修改时间
+            config_mtime = config_file.stat().st_mtime
+            if config_mtime <= self._last_config_sync_time:
+                return
+            
+            import json
+            with open(config_file, "r", encoding="utf-8") as f:
+                new_config = json.load(f)
+            
+            # 检查配置是否变化
+            old_config_dict = self.config.dict()
+            if new_config == old_config_dict:
+                self._last_config_sync_time = current_time
+                return
+            
+            logger.info("[Scriptor] 检测到配置更新，重新加载配置...")
+            self.config = ScriptorConfigPydantic(**new_config)
+            self._last_config_sync_time = current_time
+            
+            # 更新全局配置
+            from .tools.common.text_utils import set_global_config
+            set_global_config(self.config)
+            
+            # 重新初始化依赖配置的组件
+            await self._reload_config_dependent_components()
+            
+            logger.info("[Scriptor] 配置已重新加载")
+            
+        except Exception as e:
+            logger.error(f"[Scriptor] 配置同步失败：{e}")
+    
+    async def _reload_config_dependent_components(self):
+        """
+        重新加载依赖配置的组件
+        
+        目前主要重新初始化网页搜索工具
+        """
+        try:
+            # 重新初始化网页搜索工具
+            if self.config.web_search_enabled:
+                from .tools.web_search_tool import WebSearchTool
+                
+                searxng_url = self.config.searxng_base_url
+                if searxng_url:
+                    # 关闭旧的搜索工具
+                    if self.web_search_tool and hasattr(self.web_search_tool, 'client'):
+                        try:
+                            await self.web_search_tool.client.close()
+                        except Exception:
+                            pass
+                    
+                    # 创建新的搜索工具
+                    self.web_search_tool = WebSearchTool(
+                        searxng_base_url=searxng_url,
+                        searxng_secret=self.config.searxng_secret,
+                        max_results=self.config.searxng_max_results,
+                        timeout=self.config.searxng_timeout,
+                        archive_enabled=self.config.search_archive_enabled,
+                        archive_threshold=self.config.search_archive_threshold,
+                        fetch_top_n=self.config.web_fetch_top_n,
+                        default_engines=self.config.searxng_default_engines,
+                    )
+                    logger.info(f"[Scriptor] 网页搜索工具已重新初始化 (SearXNG: {searxng_url})")
+                else:
+                    logger.warning("[Scriptor] SearXNG 地址未配置，网页搜索功能将不可用")
+                    self.web_search_tool = None
+            else:
+                if self.web_search_tool and hasattr(self.web_search_tool, 'client'):
+                    try:
+                        await self.web_search_tool.client.close()
+                    except Exception:
+                        pass
+                self.web_search_tool = None
+                logger.info("[Scriptor] 网页搜索功能已禁用")
+            
+            # 重新初始化 SmartSender
+            if hasattr(self, 'smart_sender'):
+                from .core.smart_sender import SmartSender
+                self.smart_sender = SmartSender(
+                    enabled=self.config.smart_split_enabled,
+                    only_llm=self.config.smart_split_only_llm,
+                    context=self.context,
+                    regex_pattern=self.config.smart_split_regex,
+                    cleanup_pattern=self.config.smart_split_cleanup_regex,
+                    typing_speed=self.config.smart_split_typing_speed,
+                    min_delay=self.config.smart_split_min_delay,
+                    max_delay=self.config.smart_split_max_delay,
+                    random_factor=self.config.smart_split_random_factor,
+                    long_text_threshold=self.config.smart_split_long_text_threshold,
+                    long_text_pattern=self.config.smart_split_long_text_pattern,
+                    group_reply=self.config.smart_split_group_reply,
+                )
+                logger.info("[Scriptor] SmartSender 已重新初始化")
+            
+            # 可以在这里添加其他需要重新初始化的组件
+            
+        except Exception as e:
+            logger.error(f"[Scriptor] 重新加载组件失败：{e}")
 
     async def _start_web_ui(self):
         """启动 Web UI 服务（后端 API + 前端 Streamlit）"""
@@ -762,8 +936,25 @@ class ScriptorPlugin(
         """消息装饰器钩子（代理到 EventsMixin）"""
         await super().on_decorating_result(event)
 
+    # ==================== 配置同步事件处理器 ====================
+    @filter.event_message_type(filter.EventMessageType.ALL)
+    async def _config_sync_handler(self, event: AstrMessageEvent):
+        """
+        配置同步事件处理器
+        
+        定期检查并同步配置文件（每 5 分钟最多一次）
+        这样可以捕获通过 AstrBot 官方 Web UI 进行的配置更改
+        """
+        try:
+            await self._sync_config_from_disk()
+        except Exception as e:
+            # 静默失败，避免影响正常功能
+            logger.debug(f"[Scriptor] 配置同步检查失败：{e}")
+
     # ==================== 命令代理方法 ====================
-    # CommandsMixin 命令代理
+    # 注意：AstrBot 的 @filter.command 装饰器需要在类定义时静态应用才能被扫描到
+    # 因此我们回退到手动定义方案，以确保所有命令都能正常工作
+
     @filter.command("sc_help")
     async def sc_help(self, event: AstrMessageEvent):
         async for result in super().cmd_sc_help(event):
@@ -799,39 +990,36 @@ class ScriptorPlugin(
         async for result in super().cmd_webui(event):
             yield result
 
-    # KnowledgeMixin 命令代理
     @filter.command("kb_status")
     async def kb_status(self, event: AstrMessageEvent):
         async for result in super().cmd_kb_status(event):
             yield result
 
-    # LearningMixin 命令代理
     @filter.command("开始学习")
-    async def start_learning(self, event: AstrMessageEvent):
+    async def 开始学习(self, event: AstrMessageEvent):
         async for result in super().cmd_start_learning(event):
             yield result
 
     @filter.command("结束学习")
-    async def end_learning(self, event: AstrMessageEvent):
+    async def 结束学习(self, event: AstrMessageEvent):
         async for result in super().cmd_end_learning(event):
             yield result
 
     @filter.command("开始授课")
-    async def start_teaching(self, event: AstrMessageEvent):
+    async def 开始授课(self, event: AstrMessageEvent):
         async for result in super().cmd_start_teaching(event):
             yield result
 
     @filter.command("结束授课")
-    async def end_teaching(self, event: AstrMessageEvent):
+    async def 结束授课(self, event: AstrMessageEvent):
         async for result in super().cmd_end_teaching(event):
             yield result
 
     @filter.command("学习状态")
-    async def learning_status(self, event: AstrMessageEvent):
+    async def 学习状态(self, event: AstrMessageEvent):
         async for result in super().cmd_learning_status(event):
             yield result
 
-    # IdentityMixin 命令代理
     @filter.command("whoami")
     async def whoami(self, event: AstrMessageEvent):
         async for result in super().cmd_whoami(event):
@@ -842,29 +1030,11 @@ class ScriptorPlugin(
         async for result in super().cmd_get_bind_code(event):
             yield result
 
-    @filter.command("bind")
-    async def bind(self, event: AstrMessageEvent, bind_code: str = None, confirm_token: str = None):
-        async for result in super().cmd_bind(event, bind_code, confirm_token):
-            yield result
-
-    @filter.command("unbind")
-    async def unbind(self, event: AstrMessageEvent, unbind_token: str = None, confirm_token: str = None):
-        async for result in super().cmd_unbind(event, unbind_token, confirm_token):
-            yield result
-
-    @filter.command("reset_identity")
-    async def reset_identity(
-        self, event: AstrMessageEvent, reset_token: str = None, step: str = None, code: str = None
-    ):
-        async for result in super().cmd_reset_identity(event, reset_token, step, code):
-            yield result
-
     @filter.command("debug_identity")
     async def debug_identity(self, event: AstrMessageEvent):
         async for result in super().cmd_debug_identity(event):
             yield result
 
-    # MemoryMixin 命令代理
     @filter.command("mem_status")
     async def mem_status(self, event: AstrMessageEvent):
         async for result in super().cmd_status(event):
@@ -875,17 +1045,11 @@ class ScriptorPlugin(
         async for result in super().cmd_debug_memory(event):
             yield result
 
-    @filter.command("search")
-    async def search(self, event: AstrMessageEvent, *, remainder: str = ""):
-        async for result in super().cmd_search(event, remainder=remainder):
-            yield result
-
     @filter.command("mem_report")
     async def mem_report(self, event: AstrMessageEvent):
         async for result in super().cmd_mem_report(event):
             yield result
 
-    # AdminMixin Sudo 命令代理
     @filter.command("sudo_state_up")
     async def sudo_state_up(self, event: AstrMessageEvent):
         async for result in super().cmd_sudo_state_up(event):
@@ -915,6 +1079,30 @@ class ScriptorPlugin(
     async def confirm_delete(self, event: AstrMessageEvent):
         async for result in super().cmd_confirm_delete(event):
             yield result
+
+    # 带参数的命令
+    @filter.command("bind")
+    async def bind(self, event: AstrMessageEvent, bind_code: str = None, confirm_token: str = None):
+        async for result in super().cmd_bind(event, bind_code=bind_code, confirm_token=confirm_token):
+            yield result
+
+    @filter.command("unbind")
+    async def unbind(self, event: AstrMessageEvent, unbind_token: str = None, confirm_token: str = None):
+        async for result in super().cmd_unbind(event, unbind_token=unbind_token, confirm_token=confirm_token):
+            yield result
+
+    @filter.command("reset_identity")
+    async def reset_identity(self, event: AstrMessageEvent, reset_token: str = None, step: str = None, code: str = None):
+        async for result in super().cmd_reset_identity(event, reset_token=reset_token, step=step, code=code):
+            yield result
+
+    @filter.command("search")
+    async def search(self, event: AstrMessageEvent, *, remainder: str = ""):
+        async for result in super().cmd_search(event, remainder=remainder):
+            yield result
+
+
+
 
     # ==================== 生命周期方法 ====================
 
@@ -963,3 +1151,5 @@ class ScriptorPlugin(
             logger.warning("[Scriptor] 插件卸载被取消")
         except (OSError, RuntimeError) as e:
             logger.error(f"[Scriptor] 插件卸载清理失败: {e}")
+
+

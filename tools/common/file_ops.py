@@ -22,11 +22,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 if TYPE_CHECKING:
-    from astrbot.core.message.astr_message_event import AstrMessageEvent
+    from astrbot.api.event import AstrMessageEvent
 
 try:
     from astrbot.api import logger
-    from astrbot.core.star.star_tools import StarTools
+    from astrbot.api.star import StarTools
 except ImportError:
     import logging
 

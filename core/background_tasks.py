@@ -72,14 +72,12 @@ class BackgroundTasks:
                 else:
                     session_str = f"webchat!{task.uid}!{task.uid}"
 
-            from astrbot.core.message.components import Plain
-            from astrbot.core.message.message_event_result import MessageChain
-            from astrbot.core.platform.astr_message_event import MessageSesion
+            from astrbot.api.message_components import Plain
+            from astrbot.api.all import MessageChain
 
-            session = MessageSesion.from_str(session_str)
             message_chain = MessageChain([Plain(msg_content)])
 
-            success = await self.plugin.context.send_message(session, message_chain)
+            success = await self.plugin.context.send_message(session_str, message_chain)
             if success:
                 logger.info(f"[Scheduler] 已发送定时提醒: {task.content}")
             else:
@@ -137,11 +135,10 @@ class BackgroundTasks:
             max_total_time = getattr(self.plugin.config, "graph_consolidation_max_time", 25) * 60
 
             total_processed = 0
+            
+            # 收集所有需要处理的用户目录
+            user_dirs = []
             for uid_dir in profiles_dir.iterdir():
-                if time.time() - start_time > max_total_time:
-                    logger.warning("[KnowledgeGraph] 夜间整理超时，剩余用户将跳过")
-                    break
-
                 if not uid_dir.is_dir():
                     continue
 
@@ -149,8 +146,33 @@ class BackgroundTasks:
                 if not memory_dir.exists():
                     continue
 
-                processed = await self.consolidate_user_graph(uid_dir)
-                total_processed += processed
+                user_dirs.append(uid_dir)
+
+            logger.info(f"[KnowledgeGraph] 发现 {len(user_dirs)} 个用户目录")
+
+            # 并行处理所有用户（使用信号量限制并发数）
+            semaphore = asyncio.Semaphore(3)  # 最多 3 个用户并行处理
+
+            async def process_with_semaphore(uid_dir):
+                async with semaphore:
+                    # 检查超时
+                    if time.time() - start_time > max_total_time:
+                        logger.warning(f"[KnowledgeGraph] 用户 {uid_dir.name} 跳过处理（超时）")
+                        return 0
+                    return await self.consolidate_user_graph(uid_dir)
+
+            # 创建所有用户的处理任务
+            tasks = [process_with_semaphore(uid_dir) for uid_dir in user_dirs]
+            
+            # 并发执行所有任务
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # 统计结果
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(f"[KnowledgeGraph] 用户 {user_dirs[i].name} 处理失败：{result}")
+                else:
+                    total_processed += result
 
             logger.info(
                 f"[KnowledgeGraph] 夜间知识图谱整理完成，处理了 {total_processed} 个日记，耗时 {int(time.time() - start_time)} 秒"
@@ -327,8 +349,8 @@ class BackgroundTasks:
 
         greeting_text = "\n".join(lines)
 
-        from astrbot.core.message.components import Plain
-        from astrbot.core.message.message_event_result import MessageChain
+        from astrbot.api.message_components import Plain
+        from astrbot.api.all import MessageChain
 
         message_chain = MessageChain([Plain(greeting_text)])
 
@@ -415,8 +437,8 @@ class BackgroundTasks:
 
         summary_text = await self.generate_daily_summary_with_llm(uid, name, conversation_preview)
 
-        from astrbot.core.message.components import Plain
-        from astrbot.core.message.message_event_result import MessageChain
+        from astrbot.api.message_components import Plain
+        from astrbot.api.all import MessageChain
 
         message_chain = MessageChain([Plain(summary_text)])
 
