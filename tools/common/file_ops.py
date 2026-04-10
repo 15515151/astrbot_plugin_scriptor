@@ -1955,7 +1955,7 @@ async def file_delete(
     require_confirmation = getattr(plugin, 'config', None) and getattr(plugin.config, 'require_delete_confirmation', True)
     
     if require_confirmation and not force:
-        from ..core.pending_tasks import PendingTaskType, get_pending_task_store
+        from ...core.pending_tasks import PendingTaskType, get_pending_task_store
         
         store = get_pending_task_store()
         session_id = event.session_id if hasattr(event, 'session_id') else str(id(event))
