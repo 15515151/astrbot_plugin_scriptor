@@ -50,10 +50,12 @@ class TestContextIndexer:
         profiles_dir = self.data_dir / "profiles" / "test_user123"
         profiles_dir.mkdir(parents=True)
 
-        (profiles_dir / "PROFILE.md").write_text("# 用户画像\n## 基本信息\n姓名：张三", encoding="utf-8")
-        (profiles_dir / "SOUL.md").write_text("# 人格定义\n## 核心准则", encoding="utf-8")
-        (profiles_dir / "MEMORY.md").write_text("# 长期记忆\n## 重要事件", encoding="utf-8")
+        (profiles_dir / "P_PROFILE.md").write_text("# 用户画像\n## 基本信息\n姓名：张三", encoding="utf-8")
+        (profiles_dir / "P_SOUL.md").write_text("# 人格定义\n## 核心准则", encoding="utf-8")
+        (profiles_dir / "P_MEMORY.md").write_text("# 长期记忆\n## 重要事件", encoding="utf-8")
         (profiles_dir / "P_SOP.md").write_text("# 个人标准操作流程", encoding="utf-8")
+        (profiles_dir / "P_TODOed.md").write_text("# 个人待办归档\n## 已完成（历史）", encoding="utf-8")
+        (profiles_dir / "NOTES.md").write_text("# 临时笔记", encoding="utf-8")
 
         # 创建 memory 子目录
         memory_dir = profiles_dir / "memory"
@@ -64,8 +66,11 @@ class TestContextIndexer:
         # 创建 groups 目录
         groups_dir = self.data_dir / "groups" / "test_group456"
         groups_dir.mkdir(parents=True)
-        (groups_dir / "GROUP.md").write_text("# 群组工作流", encoding="utf-8")
-        (groups_dir / "MEMORY.md").write_text("# 群组记忆", encoding="utf-8")
+        (groups_dir / "G_GROUP.md").write_text("# 群组工作流", encoding="utf-8")
+        (groups_dir / "G_MEMORY.md").write_text("# 群组记忆", encoding="utf-8")
+        (groups_dir / "G_SOP.md").write_text("# 群组标准操作流程", encoding="utf-8")
+        (groups_dir / "G_TODOed.md").write_text("# 群组待办归档\n## 已完成（历史）", encoding="utf-8")
+        (groups_dir / "NOTES.md").write_text("# 群组临时笔记", encoding="utf-8")
 
         # 创建 skills 目录（在 data_dir 的父级）
         skills_dir = self.test_dir / "skills"
@@ -101,10 +106,14 @@ class TestContextIndexer:
 
         assert len(nodes) > 0, "应该扫描到至少一个节点"
 
-        # 检查是否有 PROFILE.md 节点
-        profile_nodes = [n for n in nodes if n.display_name == "PROFILE.md"]
-        assert len(profile_nodes) == 1, "应该有一个 PROFILE.md 节点"
-        assert profile_nodes[0].node_type == "personal_memory"
+        # 检查是否有 P_SOP.md 节点（渐进式披露）
+        sop_nodes = [n for n in nodes if n.display_name == "P_SOP.md"]
+        assert len(sop_nodes) == 1, "应该有一个 P_SOP.md 节点"
+        assert sop_nodes[0].node_type == "personal_memory"
+
+        # 检查是否有 P_MEMORY.md 节点（渐进式披露）
+        memory_nodes = [n for n in nodes if n.display_name == "P_MEMORY.md"]
+        assert len(memory_nodes) == 1, "应该有一个 P_MEMORY.md 节点"
 
         # 检查是否有日记节点
         diary_nodes = [n for n in nodes if n.node_type == "personal_diary"]
@@ -119,9 +128,13 @@ class TestContextIndexer:
 
         assert len(nodes) > 0, "应该扫描到至少一个节点"
 
-        # 检查是否有 GROUP.md 节点
-        group_nodes = [n for n in nodes if n.display_name == "GROUP.md"]
-        assert len(group_nodes) == 1, "应该有一个 GROUP.md 节点"
+        # 检查是否有 G_SOP.md 节点（渐进式披露）
+        sop_nodes = [n for n in nodes if n.display_name == "G_SOP.md"]
+        assert len(sop_nodes) == 1, "应该有一个 G_SOP.md 节点"
+
+        # 检查是否有 G_MEMORY.md 节点（渐进式披露）
+        memory_nodes = [n for n in nodes if n.display_name == "G_MEMORY.md"]
+        assert len(memory_nodes) == 1, "应该有一个 G_MEMORY.md 节点"
 
         print(f"   ✓ 扫描到 {len(nodes)} 个群组记忆节点")
 
@@ -157,11 +170,10 @@ class TestContextIndexer:
         """测试节点内容读取"""
         print("✅ 测试: 读取节点内容...")
 
-        # 测试读取个人文件
-        success, content = self.indexer.get_node_content("profiles/test_user123/PROFILE.md")
-        assert success, "应该成功读取 PROFILE.md"
-        assert "用户画像" in content, "内容应该包含用户画像标题"
-        assert "张三" in content, "内容应该包含用户名"
+        # 测试读取个人文件（渐进式披露文件）
+        success, content = self.indexer.get_node_content("profiles/test_user123/P_SOP.md")
+        assert success, "应该成功读取 P_SOP.md"
+        assert "个人标准操作流程" in content, "内容应该包含 SOP 标题"
 
         # 测试读取技能文件
         success, content = self.indexer.get_node_content("skills/scriptor-archive-manager/SKILL.md")

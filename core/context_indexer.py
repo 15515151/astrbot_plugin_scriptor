@@ -135,7 +135,13 @@ class ContextIndexer:
         return "Markdown 文档"
 
     def _scan_personal_nodes(self, uid: str, group_id: str = "private") -> List[ContextNode]:
-        """扫描个人记忆目录"""
+        """扫描个人记忆目录
+        
+        只索引需要渐进式披露的文件，已全量加载的文件不在此处索引：
+        - 已全量加载：P_SOUL.md, P_PROFILE.md, P_AGENTS.md, P_TODO.md, P_BOOTSTRAP.md, P_HEARTBEAT.md
+        - 渐进式披露：P_SOP.md, P_MEMORY.md, NOTES.md, CONTEXT.md
+        - 冷数据（工具检索）：TODOed/ 目录下的归档文件（不在此处索引）
+        """
         nodes = []
         profile_dir = self.data_dir / "profiles" / uid
 
@@ -143,17 +149,10 @@ class ContextIndexer:
             return nodes
 
         priority_map = {
-            "P_PROFILE.md": 10,
-            "P_SOUL.md": 9,
             "P_SOP.md": 7,
-            "P_AGENTS.md": 8,
             "P_MEMORY.md": 6,
-            "HEARTBEAT.md": 5,
-            "P_HEARTBEAT.md": 5,
-            "P_TODO.md": 4,
-            "TODO.md": 4,
-            "NOTES.md": 3,
-            "CONTEXT.md": 2,
+            "NOTES.md": 2,
+            "CONTEXT.md": 1,
         }
 
         for md_file in profile_dir.glob("*.md"):
@@ -162,7 +161,9 @@ class ContextIndexer:
 
             filename = md_file.name
             
-            # 在群聊中不加载个人的 P_SOP.md
+            if filename not in priority_map:
+                continue
+
             if group_id != "private" and filename == "P_SOP.md":
                 continue
 
@@ -208,7 +209,13 @@ class ContextIndexer:
         return nodes
 
     def _scan_group_nodes(self, group_id: str) -> List[ContextNode]:
-        """扫描群组记忆目录"""
+        """扫描群组记忆目录
+        
+        只索引需要渐进式披露的文件，已全量加载的文件不在此处索引：
+        - 已全量加载：G_SOUL.md, G_PROFILE.md, G_GROUP.md, G_TODO.md, G_BOOTSTRAP.md, G_HEARTBEAT.md
+        - 渐进式披露：G_SOP.md, G_MEMORY.md, NOTES.md
+        - 冷数据（工具检索）：TODOed/ 目录下的归档文件（不在此处索引）
+        """
         nodes = []
         group_dir = self.data_dir / "groups" / group_id
 
@@ -216,26 +223,21 @@ class ContextIndexer:
             return nodes
 
         priority_map = {
-            "G_GROUP.md": 10,
-            "G_PROFILE.md": 9,
-            "G_SOUL.md": 9,
             "G_SOP.md": 7,
-            "SOUL.md": 8,
             "G_MEMORY.md": 6,
-            "MEMORY.md": 6,
-            "HEARTBEAT.md": 5,
-            "G_HEARTBEAT.md": 5,
-            "G_TODO.md": 4,
-            "TODO.md": 4,
-            "NOTES.md": 3,
+            "NOTES.md": 2,
         }
 
         for md_file in group_dir.glob("*.md"):
             if not md_file.is_file():
                 continue
 
-            stat = md_file.stat()
             filename = md_file.name
+            
+            if filename not in priority_map:
+                continue
+
+            stat = md_file.stat()
             rel_path = f"groups/{group_id}/{filename}"
 
             nodes.append(
@@ -320,7 +322,12 @@ class ContextIndexer:
         return nodes
 
     def _scan_global_nodes(self) -> List[ContextNode]:
-        """扫描全局共享目录"""
+        """扫描全局共享目录
+        
+        只索引需要渐进式披露的文件，已全量加载的文件不在此处索引：
+        - 已全量加载：SOUL.md, HEARTBEAT.md
+        - 渐进式披露：SOP.md, MEMORY.md
+        """
         nodes = []
         global_dir = self.data_dir / "global"
 
@@ -328,17 +335,20 @@ class ContextIndexer:
             return nodes
 
         priority_map = {
-            "SOUL.md": 10,
-            "MEMORY.md": 8,
-            "HEARTBEAT.md": 6,
+            "SOP.md": 7,
+            "MEMORY.md": 6,
         }
 
         for md_file in global_dir.glob("*.md"):
             if not md_file.is_file():
                 continue
 
-            stat = md_file.stat()
             filename = md_file.name
+            
+            if filename not in priority_map:
+                continue
+
+            stat = md_file.stat()
             rel_path = f"global/{filename}"
 
             nodes.append(

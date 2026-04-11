@@ -37,19 +37,55 @@ class TodoManager:
         self._next_id = 1
         self._cache: Optional[Dict[str, List[TodoItem]]] = None
 
-    def _get_todo_file_path(self, uid: str, is_archive: bool = False) -> Path:
-        """获取 TODO 文件路径"""
+    def _get_todo_file_path(self, uid: str) -> Path:
+        """获取 TODO 主文件路径
+        
+        Args:
+            uid: 用户 ID 或群组 ID
+            
+        Returns:
+            文件路径
+        """
         if self.scope == "personal":
             base_dir = self.data_dir / "profiles" / uid
-            if is_archive:
-                return base_dir / "todo_archive"
-            return base_dir / "Personal_TODO.md"
+            return base_dir / "P_TODO.md"
         else:
             group_id = uid.replace("group_", "")
             base_dir = self.data_dir / "groups" / group_id
-            if is_archive:
-                return base_dir / "todo_archive"
-            return base_dir / "Group_TODO.md"
+            return base_dir / "G_TODO.md"
+
+    def _get_archive_dir(self, uid: str) -> Path:
+        """获取归档目录路径
+        
+        Args:
+            uid: 用户 ID 或群组 ID
+            
+        Returns:
+            归档目录路径
+        """
+        if self.scope == "personal":
+            return self.data_dir / "profiles" / uid / "TODOed"
+        else:
+            group_id = uid.replace("group_", "")
+            return self.data_dir / "groups" / group_id / "TODOed"
+
+    def _get_archive_file_path(self, uid: str, year: int, month: int) -> Path:
+        """获取按月的归档文件路径
+        
+        Args:
+            uid: 用户 ID 或群组 ID
+            year: 年份
+            month: 月份
+            
+        Returns:
+            归档文件路径（如 TODOed/P_TODO_2024-03.md）
+        """
+        archive_dir = self._get_archive_dir(uid)
+        if self.scope == "personal":
+            filename = f"P_TODO_{year}-{month:02d}.md"
+        else:
+            filename = f"G_TODO_{year}-{month:02d}.md"
+        return archive_dir / filename
 
     def _parse_todo_file(self, file_path: Path) -> Tuple[List[TodoItem], List[TodoItem]]:
         """解析 TODO Markdown 文件
@@ -161,7 +197,7 @@ class TodoManager:
         Returns:
             格式化的待办摘要文本
         """
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         three_days_ago = datetime.now() - timedelta(days=3)
@@ -192,7 +228,7 @@ class TodoManager:
 
     def add_todo(self, uid: str, content: str) -> TodoItem:
         """添加新待办"""
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         new_item = TodoItem(
@@ -206,6 +242,8 @@ class TodoManager:
         try:
             todo_file.write_text(markdown_content, encoding="utf-8")
             logger.info(f"[TodoManager] 已添加待办: {content[:30]}... (ID: {new_item.id})")
+            
+            self.archive_old_completed(uid)
         except Exception as e:
             logger.error(f"[TodoManager] 写入 TODO 文件失败: {e}")
             raise
@@ -214,7 +252,7 @@ class TodoManager:
 
     def complete_todo(self, uid: str, task_id: int) -> bool:
         """标记待办为已完成"""
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         target_item = None
@@ -236,6 +274,8 @@ class TodoManager:
         try:
             todo_file.write_text(markdown_content, encoding="utf-8")
             logger.info(f"[TodoManager] 已完成待办: {target_item.content[:30]}... (ID: {task_id})")
+            
+            self.archive_old_completed(uid)
             return True
         except Exception as e:
             logger.error(f"[TodoManager] 写入 TODO 文件失败: {e}")
@@ -243,7 +283,7 @@ class TodoManager:
 
     def update_todo(self, uid: str, task_id: int, new_content: str) -> bool:
         """更新待办内容"""
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         target_item = None
@@ -270,7 +310,7 @@ class TodoManager:
 
     def delete_todo(self, uid: str, task_id: int) -> bool:
         """删除待办"""
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         pending_items = [item for item in pending_items if item.id != task_id]
@@ -308,7 +348,7 @@ class TodoManager:
         Returns:
             匹配的待办列表
         """
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         all_items = pending_items + completed_items
@@ -342,20 +382,21 @@ class TodoManager:
         return filtered_items[:limit]
 
     def archive_old_completed(self, uid: str) -> int:
-        """归档旧已完成项
+        """归档旧已完成项（按月切片归档）
 
-        将上个月及以前的已完成项移动到归档文件
+        将完成时间超过 3 天的已完成项按月份分组，
+        分别写入对应的归档文件（如 TODOed/P_TODO_2024-03.md）
 
         Returns:
             归档的条目数量
         """
-        todo_file = self._get_todo_file_path(uid, is_archive=False)
+        todo_file = self._get_todo_file_path(uid)
         pending_items, completed_items = self._parse_todo_file(todo_file)
 
         if not completed_items:
             return 0
 
-        current_month = datetime.now().strftime("%Y-%m")
+        three_days_ago = datetime.now() - timedelta(days=3)
         to_archive = []
         remaining_completed = []
 
@@ -363,8 +404,7 @@ class TodoManager:
             if not item.completed_at:
                 continue
 
-            item_month = item.completed_at.strftime("%Y-%m")
-            if item_month < current_month:
+            if item.completed_at < three_days_ago:
                 to_archive.append(item)
             else:
                 remaining_completed.append(item)
@@ -372,44 +412,51 @@ class TodoManager:
         if not to_archive:
             return 0
 
-        archive_dir = self._get_todo_file_path(uid, is_archive=True)
-        archive_dir.mkdir(parents=True, exist_ok=True)
+        from collections import defaultdict
+        archive_by_month = defaultdict(list)
+        for item in to_archive:
+            if item.completed_at:
+                year_month = (item.completed_at.year, item.completed_at.month)
+                archive_by_month[year_month].append(item)
 
-        archive_file = archive_dir / f"{to_archive[0].completed_at.strftime('%Y-%m')}.md"
+        total_archived = 0
+        for (year, month), items in archive_by_month.items():
+            archive_file = self._get_archive_file_path(uid, year, month)
+            
+            try:
+                archive_dir = self._get_archive_dir(uid)
+                if not archive_dir.exists():
+                    archive_dir.mkdir(parents=True, exist_ok=True)
 
-        try:
-            if archive_file.exists():
-                existing_content = archive_file.read_text(encoding="utf-8")
-                lines = existing_content.split("\n")
-                for item in to_archive:
+                existing_lines = []
+                if archive_file.exists():
+                    existing_content = archive_file.read_text(encoding="utf-8")
+                    existing_lines = existing_content.split("\n")
+                    if existing_lines and not existing_lines[-1]:
+                        existing_lines = existing_lines[:-1]
+                else:
+                    archive_title = f"# {'个人' if self.scope == 'personal' else '群组'}待办归档 - {year}年{month}月"
+                    existing_lines = [archive_title, "", "## 已完成（历史）", ""]
+
+                for item in sorted(items, key=lambda x: x.completed_at or x.created_at):
                     timestamp = item.created_at.strftime("%Y-%m-%d %H:%M:%S")
                     completed_str = (
                         f" (完成于: {item.completed_at.strftime('%Y-%m-%d %H:%M:%S')})" if item.completed_at else ""
                     )
-                    lines.append(f"- [x] [{timestamp}] {item.content}{completed_str}")
-                existing_content = "\n".join(lines)
-            else:
-                archive_lines = ["# 归档待办 - {to_archive[0].completed_at.strftime('%Y-%m')}"]
-                for item in sorted(to_archive, key=lambda x: x.completed_at):
-                    timestamp = item.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                    completed_str = (
-                        f" (完成于: {item.completed_at.strftime('%Y-%m-%d %H:%M:%S')})" if item.completed_at else ""
-                    )
-                    archive_lines.append(f"- [x] [{timestamp}] {item.content}{completed_str}")
-                existing_content = "\n".join(archive_lines)
+                    existing_lines.append(f"- [x] [{timestamp}] {item.content}{completed_str}")
 
-            archive_file.write_text(existing_content, encoding="utf-8")
-            logger.info(f"[TodoManager] 已归档 {len(to_archive)} 条待办到: {archive_file.name}")
-        except Exception as e:
-            logger.error(f"[TodoManager] 归档失败: {e}")
-            return 0
+                archive_file.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
+                logger.info(f"[TodoManager] 已归档 {len(items)} 条待办到: {archive_file.name}")
+                total_archived += len(items)
+            except Exception as e:
+                logger.error(f"[TodoManager] 归档到 {archive_file.name} 失败: {e}")
 
         markdown_content = self._generate_markdown(pending_items, remaining_completed)
 
         try:
             todo_file.write_text(markdown_content, encoding="utf-8")
-            logger.info(f"[TodoManager] 主文件已更新，归档 {len(to_archive)} 条")
-            return len(to_archive)
+            logger.info(f"[TodoManager] 主文件已更新，归档 {total_archived} 条")
+            return total_archived
         except Exception as e:
             logger.error(f"[TodoManager] 更新主文件失败: {e}")
             return 0

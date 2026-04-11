@@ -597,24 +597,31 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         """构建 TODO 热记忆上下文
 
         注入未完成待办 + 最近3天已完成的待办
+        同时静默触发归档，确保热数据绝对干净
         """
         try:
             from .todo_manager import TodoManager
 
             todo_manager = TodoManager(self.data_dir, scope="personal")
+            todo_manager.archive_old_completed(uid)
+            
             personal_todo = todo_manager.get_hot_memory(uid)
 
             result = ""
 
             if personal_todo and personal_todo != "【当前待办状态】\n\n**无未完成待办**\n\n**无最近完成记录**":
-                result += f"# 个人待办清单\n{personal_todo}\n"
+                archive_hint = "> [系统提示] 超过3天的历史已完成任务已归档至 TODOed 目录。如需查询历史记录，请调用 search_historical_todos 工具（参数 scope=\"personal\"）。\n\n"
+                result += f"# 个人待办清单\n{archive_hint}{personal_todo}\n"
 
             if group_id != "private":
                 group_manager = TodoManager(self.data_dir, scope="group")
+                group_manager.archive_old_completed(group_id)
+                
                 group_todo = group_manager.get_hot_memory(group_id)
 
                 if group_todo and group_todo != "【当前待办状态】\n\n**无未完成待办**\n\n**无最近完成记录**":
-                    result += f"# 群组待办清单\n{group_todo}\n"
+                    archive_hint = "> [系统提示] 超过3天的历史已完成任务已归档至 TODOed 目录。如需查询历史记录，请调用 search_historical_todos 工具（参数 scope=\"group\"）。\n\n"
+                    result += f"# 群组待办清单\n{archive_hint}{group_todo}\n"
 
             return result
 
@@ -864,10 +871,26 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         # ========== 第三段：绝对动态区 (Dynamic Zone) - 缓存破坏者 ==========
         # 这些内容频繁变动，必须放在最后
 
-        # 7. 全局心跳 (Global HEARTBEAT.md) - 全局临时指令
+        # 7. 心跳指令 (HEARTBEAT) - 三层架构：全局 -> 群组 -> 个人
+        # 7.1 全局心跳 (Global HEARTBEAT.md) - 全局临时指令
         global_heartbeat_content = self._load_global_template("HEARTBEAT.md")
         if global_heartbeat_content and global_heartbeat_content.strip():
             trimmer.add_part("global_heartbeat", "# 全局临时指令 (Global HEARTBEAT)\n" + global_heartbeat_content, 30)
+
+        # 7.2 群组心跳 (G_HEARTBEAT.md) - 群组专属临时指令（仅群聊加载）
+        if group_id != "private":
+            group_heartbeat_file = self.data_dir / "groups" / group_id / "G_HEARTBEAT.md"
+            if group_heartbeat_file.exists():
+                group_heartbeat_content = group_heartbeat_file.read_text(encoding="utf-8")
+                if group_heartbeat_content.strip():
+                    trimmer.add_part("group_heartbeat", "# 群组临时指令 (Group HEARTBEAT)\n" + group_heartbeat_content, 29.5)
+
+        # 7.3 个人心跳 (P_HEARTBEAT.md) - 个人专属临时指令
+        personal_heartbeat_file = profile_dir / "P_HEARTBEAT.md"
+        if personal_heartbeat_file.exists():
+            personal_heartbeat_content = personal_heartbeat_file.read_text(encoding="utf-8")
+            if personal_heartbeat_content.strip():
+                trimmer.add_part("personal_heartbeat", "# 个人临时指令 (Personal HEARTBEAT)\n" + personal_heartbeat_content, 29)
 
         # 8. 群体规则和成员（实时性要求高）
         if group_id != "private":

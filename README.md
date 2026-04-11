@@ -876,9 +876,15 @@ def _check_and_trigger_proactive_tasks(self):
 
 ## 🚀 快速开始
 
-### 🆕 最近更新 (v1.0.0 - 2026-04-10)
+### 🆕 最近更新 (v1.0.0 - 2026-04-11)
 
 #### 新增功能
+- ✨ **TODO 历史归档系统**：实现"热数据全量加载 + 冷数据工具检索"三级缓存架构
+  - **按月切片归档**：超过 3 天的已完成任务自动归档到 `TODOed/P_TODO_YYYY-MM.md` 或 `TODOed/G_TODO_YYYY-MM.md`
+  - **静默触发归档**：每次构建 Prompt 时自动触发归档，确保热数据绝对干净
+  - **顶部提示注入**：在 TODO 文件开头注入引导提示，告知 AI 历史数据已归档
+  - **历史检索工具**：新增 `search_historical_todos` 工具，支持按年月、关键词搜索历史待办
+  - **防爆仓截断**：单次搜索最多返回 50 条记录，超出时提示用户缩小范围
 - ✨ **文件发送工具 (`file_send_tool`)**：支持将 VFS 文件作为真实附件发送给用户，用户可直接下载查看（如 `@personal/P_SOUL.md`）
 - ⚡ **知识图谱性能优化**：实现增量处理 + 并行化（`asyncio.Semaphore`），处理速度提升约 3 倍
 - 🔄 **主动回复降级策略**：完善小模型 → 大模型的 Fallback 机制，提升意图判定可靠性
@@ -889,6 +895,12 @@ def _check_and_trigger_proactive_tasks(self):
 - 🐛 **修复配置同步问题**：实现 AstrBot WebUI 与插件配置的双向同步（UTF-8 BOM 处理 + 扁平/嵌套格式转换）
 
 #### 架构改进
+- 🏗️ **TODO 三级缓存架构**：
+  | 数据层级 | 存储位置 | 加载方式 | Token 消耗 |
+  |---------|---------|---------|-----------|
+  | **热数据** | `P_TODO.md` / `G_TODO.md` | 全量加载 | 恒定（仅未完成 + 3天内已完成） |
+  | **冷数据** | `TODOed/P_TODO_YYYY-MM.md` | 工具检索 (`search_historical_todos`) | 按需加载，50条截断 |
+  | **目录树** | `context_indexer` | 不索引归档文件 | 零消耗 |
 - 🏗️ **全工具 VFS 适配**：所有文件操作工具（`file_read`, `file_write`, `file_edit`, `file_append`, `file_delete`, `file_grep`, `file_list`, `file_send`）均已完全支持 VFS 虚拟路径
 - 🔧 **API 规范化**：修复 32 处 API 导入，从 `astrbot.core` 迁移到 `astrbot.api`
 

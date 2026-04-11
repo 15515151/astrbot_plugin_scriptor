@@ -382,19 +382,24 @@ def test_progressive_disclosure_index_generation():
         test_uid = "user_test456"
         test_gid = "test_group_789"
 
-        # 创建个人文件
+        # 创建个人文件（符合新的命名规范）
         user_dir = profiles_dir / test_uid
         user_dir.mkdir()
-        (user_dir / "PROFILE.md").write_text('---\nsummary: "用户画像"\n---\n# Profile', encoding="utf-8")
-        (user_dir / "MEMORY.md").write_text('---\nsummary: "长期记忆"\n---\n# Memory', encoding="utf-8")
+        (user_dir / "P_PROFILE.md").write_text('---\nsummary: "用户画像"\n---\n# Profile', encoding="utf-8")
+        (user_dir / "P_MEMORY.md").write_text('---\nsummary: "长期记忆"\n---\n# Memory', encoding="utf-8")
+        (user_dir / "P_SOP.md").write_text('---\nsummary: "个人标准操作流程"\n---\n# SOP', encoding="utf-8")
 
-        # 创建群组文件
+        # 创建群组文件（符合新的命名规范）
         group_dir = groups_dir / test_gid
         group_dir.mkdir()
         (group_dir / "G_PROFILE.md").write_text('---\nsummary: "群组画像"\n---\n# Group Profile', encoding="utf-8")
+        (group_dir / "G_MEMORY.md").write_text('---\nsummary: "群组记忆"\n---\n# Group Memory', encoding="utf-8")
+        (group_dir / "G_SOP.md").write_text('---\nsummary: "群组标准操作流程"\n---\n# Group SOP', encoding="utf-8")
 
         # 创建全局文件
         (global_dir / "SOUL.md").write_text("# Global SOUL", encoding="utf-8")
+        (global_dir / "SOP.md").write_text('---\nsummary: "全局标准操作流程"\n---\n# Global SOP', encoding="utf-8")
+        (global_dir / "MEMORY.md").write_text('---\nsummary: "全局记忆"\n---\n# Global Memory', encoding="utf-8")
 
         # 创建技能文件
         skill_dir = skills_dir / "test-skill"
@@ -417,8 +422,8 @@ def test_progressive_disclosure_index_generation():
         assert "file_read_tool" in full_index, "应包含工具使用示例"
         print("✓ 使用示例已注入索引")
 
-        # 验证节点格式
-        assert "**PROFILE.md**" in full_index or "PROFILE.md" in full_index, "应显示 PROFILE.md 节点"
+        # 验证节点格式（检查渐进式披露的文件）
+        assert "**P_MEMORY.md**" in full_index or "P_MEMORY.md" in full_index, "应显示 P_MEMORY.md 节点"
         assert "`profiles/" in full_index, "应显示路径信息"
         print("✓ 节点格式正确（加粗名称 + 路径 + 描述）")
 

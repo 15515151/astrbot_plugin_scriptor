@@ -2223,3 +2223,134 @@ class ToolsMixin(BaseMixin):
         except Exception as e:
             logger.error(f"[Scriptor] 查询待办历史失败：{e}")
             return f"❌ 查询失败：{e!s}"
+
+    @filter.llm_tool()
+    async def search_historical_todos(
+        self,
+        event: AstrMessageEvent,
+        scope: str = "personal",
+        year: int = None,
+        month: int = None,
+        keyword: str = None,
+    ):
+        """
+        搜索已归档的历史待办事项（冷数据检索）。
+
+        当用户询问超过3天的历史待办记录时使用此工具。
+        例如："我去年做了什么？"、"查一下2024年3月的待办"、"搜索关于服务器的历史任务"。
+
+        Args:
+            scope (str): 搜索范围，"personal"（个人）或 "group"（群组）
+            year (int): 年份（可选，如 2024）
+            month (int): 月份（可选，如 3）
+            keyword (str): 关键词搜索（可选）
+
+        Returns:
+            匹配的历史待办列表（最多50条，防止爆仓）
+        """
+        await self._wait_for_ready()
+
+        uid, group_id, _ = self._get_identity(event)
+
+        try:
+            if scope == "group":
+                if group_id == "private":
+                    return "❌ 当前处于私聊环境，无法搜索群组历史待办。"
+                target_id = group_id
+            else:
+                target_id = uid
+
+            from pathlib import Path
+            import re
+
+            if scope == "personal":
+                archive_dir = self.data_dir / "profiles" / target_id / "TODOed"
+                file_prefix = "P_TODO_"
+            else:
+                archive_dir = self.data_dir / "groups" / target_id / "TODOed"
+                file_prefix = "G_TODO_"
+
+            if not archive_dir.exists():
+                return f"📋 暂无历史归档记录（目录不存在）"
+
+            all_results = []
+            MAX_RESULTS = 50
+
+            archive_files = sorted(archive_dir.glob(f"{file_prefix}*.md"), reverse=True)
+
+            for archive_file in archive_files:
+                filename = archive_file.name
+                match = re.match(rf"{file_prefix}(\d{{4}})-(\d{{2}})\.md", filename)
+                if not match:
+                    continue
+
+                file_year = int(match.group(1))
+                file_month = int(match.group(2))
+
+                if year and file_year != year:
+                    continue
+                if month and file_month != month:
+                    continue
+
+                try:
+                    content = archive_file.read_text(encoding="utf-8")
+                    lines = content.split("\n")
+
+                    for line in lines:
+                        if not line.strip().startswith("- [x]"):
+                            continue
+
+                        if keyword:
+                            if keyword.lower() not in line.lower():
+                                continue
+
+                        all_results.append({
+                            "file": filename,
+                            "year": file_year,
+                            "month": file_month,
+                            "content": line.strip(),
+                        })
+
+                        if len(all_results) >= MAX_RESULTS:
+                            break
+
+                except Exception as e:
+                    logger.debug(f"[Scriptor] 读取归档文件失败 {archive_file}: {e}")
+                    continue
+
+                if len(all_results) >= MAX_RESULTS:
+                    break
+
+            if not all_results:
+                hint_parts = []
+                if year:
+                    hint_parts.append(f"{year}年")
+                if month:
+                    hint_parts.append(f"{month}月")
+                if keyword:
+                    hint_parts.append(f"关键词'{keyword}'")
+                
+                hint = "、".join(hint_parts) if hint_parts else "指定条件"
+                return f"📋 未找到匹配的历史待办记录（{hint}）"
+
+            scope_label = "个人" if scope == "personal" else "群组"
+            lines = [f"📋 **{scope_label}历史待办归档**（共 {len(all_results)} 条）", ""]
+
+            current_month = None
+            for result in all_results:
+                month_key = f"{result['year']}-{result['month']:02d}"
+                if month_key != current_month:
+                    lines.append(f"### 📅 {result['year']}年{result['month']}月")
+                    current_month = month_key
+
+                lines.append(result["content"])
+
+            if len(all_results) >= MAX_RESULTS:
+                lines.append("")
+                lines.append(f"⚠️ 找到大量记录，已截断显示最近的 {MAX_RESULTS} 条。请提供更精确的 year/month 或 keyword 以缩小搜索范围。")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.error(f"[Scriptor] 搜索历史待办失败：{e}")
+            return f"❌ 搜索失败：{e!s}"
