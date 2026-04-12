@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime
-from typing import TYPE_CHECKING
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Optional
 
 from astrbot.api import logger
 from astrbot.api.event import filter
@@ -1973,19 +1973,44 @@ class ToolsMixin(BaseMixin):
             return f"❌ 学习失败：{e!s}"
 
     @filter.llm_tool()
-    async def add_todo(self, event: AstrMessageEvent, content: str, scope: str = "personal"):
+    async def add_todo(
+        self,
+        event: AstrMessageEvent,
+        content: str,
+        scope: str = "personal",
+        due_date: str = "",
+        advance_minutes: int = 0,
+        cron_expression: str = "",
+        priority: int = 2,
+        need_reminder: bool = False,
+    ):
         """
-        添加新的待办事项。
+        添加新的待办事项（支持时间属性、周期性任务、优先级和自动提醒）。
 
-        当用户明确要求记录任务、提醒、计划、待办时使用此工具。
-        例如："提醒我下午三点开会"、"帮我记一下买菜"、"明天要交周报"。
+        【核心工具】当用户要求记录任务、提醒、计划、待办时使用此工具。
+        支持一次性任务、周期性任务、提前提醒等功能。
+
+        【重要】此工具已整合提醒功能。当用户要求定时提醒或周期性提醒时，
+        只需设置 due_date 和 need_reminder=True，无需再调用 add_schedule_task。
 
         Args:
             content (str): 待办事项内容
             scope (str): 作用域，"personal"（个人）或 "group"（群组）
+            due_date (str): 截止时间/提醒时间，格式："YYYY-MM-DD HH:MM" 或 "HH:MM"（今天或明天）
+            advance_minutes (int): 提前提醒分钟数，0 = 准点提醒（默认）
+            cron_expression (str): 周期性任务表达式，如 "daily"（每天）、"weekly"（每周）、
+                                   "0 9 * * *"（每天9点，标准Cron格式）
+            priority (int): 优先级，1=低、2=中（默认）、3=高
+            need_reminder (bool): 是否需要在截止时间到达时自动发送提醒（默认 False）
 
         Returns:
             添加结果确认
+
+        示例:
+            - 简单待办: content="买菜"
+            - 定时提醒: content="开会", due_date="14:00", need_reminder=True
+            - 周期任务: content="站会", due_date="09:00", cron_expression="daily", need_reminder=True
+            - 提前提醒: content="会议", due_date="15:00", advance_minutes=15, need_reminder=True
         """
         await self._wait_for_ready()
 
@@ -1998,29 +2023,107 @@ class ToolsMixin(BaseMixin):
 
         try:
             from ..core.todo_manager import TodoManager
+            from datetime import datetime as dt
 
             manager = TodoManager(self.data_dir, scope=scope)
-            item = manager.add_todo(target_id, content)
+            
+            parsed_due_date = None
+            if due_date:
+                parsed_due_date = self._parse_todo_datetime(due_date)
 
-            return (
-                f"✅ 已添加待办事项：\n"
-                f"   内容：{content}\n"
-                f"   ID：{item.id}\n"
-                f"   时间：{item.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
-                f"使用 `complete_todo` 标记完成，或 `update_todo` 修改内容。"
+            linked_reminder_id = ""
+            if need_reminder and parsed_due_date:
+                reminder_time = parsed_due_date
+                if advance_minutes > 0:
+                    reminder_time = parsed_due_date - timedelta(minutes=advance_minutes)
+                
+                from ..core.scheduler import ScheduledTask
+                import uuid
+                
+                task = ScheduledTask(
+                    task_id=str(uuid.uuid4()),
+                    trigger_time=reminder_time.timestamp(),
+                    content=f"TODO提醒: {content}",
+                    task_type="recurring" if cron_expression else "once",
+                    uid=uid,
+                    group_id=group_id if group_id != "private" else "",
+                )
+                self.scheduler.add_task(task)
+                linked_reminder_id = task.task_id
+                logger.info(f"[Scriptor] 已创建关联提醒: {linked_reminder_id[:8]}")
+
+            item = manager.add_todo(
+                target_id,
+                content,
+                due_date=parsed_due_date,
+                advance_minutes=advance_minutes,
+                cron_expression=cron_expression,
+                priority=priority,
+                linked_reminder_id=linked_reminder_id,
             )
+
+            result_lines = [f"✅ 已添加待办事项：", f"   内容：{content}", f"   ID：{item.id}"]
+            
+            if parsed_due_date:
+                result_lines.append(f"   截止时间：{parsed_due_date.strftime('%Y-%m-%d %H:%M')}")
+            if advance_minutes > 0:
+                result_lines.append(f"   提前提醒：{advance_minutes} 分钟")
+            if cron_expression:
+                result_lines.append(f"   周期规则：{cron_expression}")
+            if priority != 2:
+                priority_labels = {1: "低", 3: "高"}
+                result_lines.append(f"   优先级：{priority_labels.get(priority, '中')}")
+            if need_reminder and linked_reminder_id:
+                result_lines.append(f"   🔔 已设置自动提醒")
+            
+            result_lines.append(f"\n使用 `complete_todo` 标记完成，或 `update_todo` 修改内容。")
+
+            return "\n".join(result_lines)
 
         except Exception as e:
             logger.error(f"[Scriptor] 添加待办失败：{e}")
             return f"❌ 添加失败：{e!s}"
 
+    def _parse_todo_datetime(self, time_str: str) -> Optional[datetime]:
+        """解析待办时间字符串"""
+        import re
+        from datetime import datetime as dt
+        
+        time_str = time_str.strip()
+        now = dt.now()
+        
+        if re.match(r"^\d{1,2}:\d{2}$", time_str):
+            hour, minute = map(int, time_str.split(":"))
+            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= now:
+                target += timedelta(days=1)
+            return target
+        
+        if re.match(r"^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}$", time_str):
+            try:
+                return dt.strptime(time_str, "%Y-%m-%d %H:%M")
+            except ValueError:
+                pass
+        
+        if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", time_str):
+            try:
+                return dt.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                pass
+        
+        return None
+
     @filter.llm_tool()
     async def complete_todo(self, event: AstrMessageEvent, task_id: int, scope: str = "personal"):
         """
-        将待办事项标记为已完成。
+        将待办事项标记为已完成（支持周期性任务自动推延）。
 
         当用户表示某项任务已完成、搞定、做完了时使用此工具。
         例如："牛奶买好了"、"那个会开完了"、"第一件事做完了"。
+
+        【周期性任务特殊处理】
+        如果待办是周期性任务（如每天站会），标记完成后会自动推延到下一个周期，
+        而不是归档。系统会自动更新截止时间和关联的定时提醒。
 
         Args:
             task_id (int): 待办事项的 ID（从热记忆中获取）
@@ -2042,10 +2145,18 @@ class ToolsMixin(BaseMixin):
             from ..core.todo_manager import TodoManager
 
             manager = TodoManager(self.data_dir, scope=scope)
-            success = manager.complete_todo(target_id, task_id)
+            success, item = manager.complete_todo(target_id, task_id, scheduler=self.scheduler)
 
-            if success:
-                return f"✅ 已将待办事项 (ID: {task_id}) 标记为完成"
+            if success and item:
+                if item.is_recurring() and item.status == "pending":
+                    return (
+                        f"✅ 周期任务已完成并推延到下一周期：\n"
+                        f"   内容：{item.content}\n"
+                        f"   新截止时间：{item.due_date.strftime('%Y-%m-%d %H:%M') if item.due_date else '未设置'}\n"
+                        f"   周期规则：{item.cron_expression}"
+                    )
+                else:
+                    return f"✅ 已将待办事项 (ID: {task_id}) 标记为完成"
             else:
                 return f"⚠️ 未找到待办事项 (ID: {task_id})，请检查 ID 是否正确"
 
@@ -2054,17 +2165,33 @@ class ToolsMixin(BaseMixin):
             return f"❌ 操作失败：{e!s}"
 
     @filter.llm_tool()
-    async def update_todo(self, event: AstrMessageEvent, task_id: int, new_content: str, scope: str = "personal"):
+    async def update_todo(
+        self,
+        event: AstrMessageEvent,
+        task_id: int,
+        new_content: str = "",
+        scope: str = "personal",
+        due_date: str = "",
+        advance_minutes: int = -1,
+        cron_expression: str = "",
+        priority: int = -1,
+    ):
         """
-        修改现有待办事项的内容。
+        修改现有待办事项（支持修改时间、周期、优先级）。
 
         当用户要求修改、更新、更改某个待办事项时使用此工具。
-        例如："把下午三点的会推迟到四点"、"把买菜改成买水果"。
+        例如："把下午三点的会推迟到四点"、"把买菜改成买水果"、"提高这个任务的优先级"。
+
+        【自动联动】修改截止时间时，系统会自动更新关联的定时提醒。
 
         Args:
             task_id (int): 待办事项的 ID
-            new_content (str): 新的待办内容
+            new_content (str): 新的待办内容（可选，不修改则留空）
             scope (str): 作用域，"personal" 或 "group"
+            due_date (str): 新的截止时间（可选，格式同 add_todo）
+            advance_minutes (int): 新的提前提醒分钟数（可选，-1 表示不修改）
+            cron_expression (str): 新的周期规则（可选）
+            priority (int): 新的优先级（可选，-1 表示不修改）
 
         Returns:
             更新结果确认
@@ -2080,12 +2207,41 @@ class ToolsMixin(BaseMixin):
 
         try:
             from ..core.todo_manager import TodoManager
+            from datetime import datetime as dt
 
             manager = TodoManager(self.data_dir, scope=scope)
-            success = manager.update_todo(target_id, task_id, new_content)
+            
+            parsed_due_date = None
+            if due_date:
+                parsed_due_date = self._parse_todo_datetime(due_date)
 
-            if success:
-                return f"✅ 已更新待办事项 (ID: {task_id})：{new_content}"
+            update_kwargs = {"scheduler": self.scheduler}
+            if new_content:
+                update_kwargs["new_content"] = new_content
+            if parsed_due_date:
+                update_kwargs["due_date"] = parsed_due_date
+            if advance_minutes >= 0:
+                update_kwargs["advance_minutes"] = advance_minutes
+            if cron_expression:
+                update_kwargs["cron_expression"] = cron_expression
+            if priority >= 0:
+                update_kwargs["priority"] = priority
+
+            success, item = manager.update_todo(target_id, task_id, **update_kwargs)
+
+            if success and item:
+                result_lines = [f"✅ 已更新待办事项 (ID: {task_id})："]
+                result_lines.append(f"   内容：{item.content}")
+                if item.due_date:
+                    result_lines.append(f"   截止时间：{item.due_date.strftime('%Y-%m-%d %H:%M')}")
+                if item.advance_minutes > 0:
+                    result_lines.append(f"   提前提醒：{item.advance_minutes} 分钟")
+                if item.cron_expression:
+                    result_lines.append(f"   周期规则：{item.cron_expression}")
+                if item.priority != 2:
+                    priority_labels = {1: "低", 3: "高"}
+                    result_lines.append(f"   优先级：{priority_labels.get(item.priority, '中')}")
+                return "\n".join(result_lines)
             else:
                 return f"⚠️ 未找到待办事项 (ID: {task_id})"
 
@@ -2096,10 +2252,12 @@ class ToolsMixin(BaseMixin):
     @filter.llm_tool()
     async def delete_todo(self, event: AstrMessageEvent, task_id: int, scope: str = "personal"):
         """
-        删除/取消待办事项。
+        删除/取消待办事项（自动清理关联的定时提醒）。
 
         当用户表示某项任务取消、不需要了、删掉时使用此工具。
         例如："那个会取消了"、"不用记了"、"删除第一个待办"。
+
+        【自动联动】删除待办时，系统会自动删除关联的定时提醒，避免"幽灵提醒"。
 
         Args:
             task_id (int): 待办事项的 ID
@@ -2121,10 +2279,13 @@ class ToolsMixin(BaseMixin):
             from ..core.todo_manager import TodoManager
 
             manager = TodoManager(self.data_dir, scope=scope)
-            success = manager.delete_todo(target_id, task_id)
+            success, item = manager.delete_todo(target_id, task_id, scheduler=self.scheduler)
 
             if success:
-                return f"✅ 已删除待办事项 (ID: {task_id})"
+                result = f"✅ 已删除待办事项 (ID: {task_id})"
+                if item and item.linked_reminder_id:
+                    result += f"\n   🔔 已同步删除关联的定时提醒"
+                return result
             else:
                 return f"⚠️ 未找到待办事项 (ID: {task_id})"
 

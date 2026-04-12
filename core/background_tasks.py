@@ -981,7 +981,7 @@ class BackgroundTasks:
             logger.error(f"[Scriptor] 个人 Heartbeat 执行失败: {e}")
 
     async def _execute_heartbeat_task(self, task_content: str, uid: str, scope: str) -> str:
-        """执行单个 Heartbeat 任务
+        """执行单个 Heartbeat 任务（含逾期任务主动询问）
         
         Args:
             task_content: 任务内容（从 HEARTBEAT.md 读取）
@@ -992,9 +992,44 @@ class BackgroundTasks:
             执行结果文本
         """
         try:
+            todo_context = ""
+            
+            if uid != "*" and scope in ("private", "group"):
+                try:
+                    from .todo_manager import TodoManager
+                    
+                    todo_manager = TodoManager(self.plugin.data_dir, scope="personal" if scope == "private" else "group")
+                    
+                    overdue_items = todo_manager.get_overdue_items(uid)
+                    today_high_priority = todo_manager.get_today_high_priority_items(uid)
+                    
+                    if overdue_items or today_high_priority:
+                        todo_context = "\n\n【系统提示 - 任务状态检查】\n"
+                        
+                        if overdue_items:
+                            todo_context += "\n⚠️ **逾期任务（需要关注）**：\n"
+                            for item in overdue_items[:3]:
+                                due_str = f" (截止: {item.due_date.strftime('%m-%d %H:%M')})" if item.due_date else ""
+                                todo_context += f"  - {item.content[:50]}{due_str}\n"
+                            if len(overdue_items) > 3:
+                                todo_context += f"  ... 还有 {len(overdue_items) - 3} 个逾期任务\n"
+                            todo_context += "\n请以符合你人设的口吻，自然地询问用户这些任务的进度。\n"
+                        
+                        if today_high_priority:
+                            todo_context += "\n🔥 **今日高优先级任务**：\n"
+                            for item in today_high_priority[:3]:
+                                due_str = f" (截止: {item.due_date.strftime('%H:%M')})" if item.due_date else ""
+                                todo_context += f"  - {item.content[:50]}{due_str}\n"
+                            todo_context += "\n请提醒用户关注这些重要任务。\n"
+                        
+                except Exception as e:
+                    logger.warning(f"[Scriptor] 获取 TODO 状态失败: {e}")
+            
+            enhanced_content = task_content + todo_context
+            
             messages = [
-                {"role": "system", "content": "你是一个正在执行定时任务的 AI 管家。请完成用户指定的任务并返回结果。"},
-                {"role": "user", "content": task_content},
+                {"role": "system", "content": "你是一个正在执行定时任务的 AI 管家。请完成用户指定的任务并返回结果。如果系统提示了逾期任务或高优先级任务，请主动关心用户的进度。"},
+                {"role": "user", "content": enhanced_content},
             ]
             
             llm_timeout = getattr(self.plugin.config, "llm_call_timeout", 60)
