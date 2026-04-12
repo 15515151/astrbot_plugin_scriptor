@@ -233,7 +233,7 @@ class BackgroundTasks:
                 return False
 
             content_text = response.completion_text.strip() if response.completion_text else ""
-            from .tools.common.json_parser import safe_json_loads
+            from ..tools.common.json_parser import safe_json_loads
 
             data = safe_json_loads(content_text, default={})
 
