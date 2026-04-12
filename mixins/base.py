@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from ..core.compactor import Compactor
     from ..core.config_pydantic import ScriptorConfigPydantic
     from ..core.conversation_ledger import ConversationLedger
-    from ..core.cross_group_message import CrossGroupMessageSystem
     from ..core.file_manager import FileManager
     from ..core.file_monitor import FileMonitor
     from ..core.group_manager import GroupManager
@@ -49,7 +48,6 @@ class BaseMixin:
 
     identity_manager: IdentityManager
     group_manager: GroupManager
-    cross_group_system: CrossGroupMessageSystem
     memory_manager: MemoryManager
     compactor: Compactor
     conversation_ledger: ConversationLedger

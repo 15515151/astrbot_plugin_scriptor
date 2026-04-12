@@ -277,8 +277,8 @@ class BackgroundTasks:
         try:
             logger.info(f"[Scriptor] 触发主动事件: {event_type} (uid={uid}, group={group_id})")
 
-            if event_type == "heartbeat_review":
-                await self.run_heartbeat_review()
+            if event_type == "idle_consolidation":
+                await self.run_idle_consolidation()
             elif event_type == "morning_greeting":
                 await self.run_morning_greeting()
             elif event_type == "evening_summary":
@@ -380,9 +380,24 @@ class BackgroundTasks:
         return None
 
     async def run_evening_summary(self):
-        """执行晚安总结 - 收集今日活跃用户并生成个性化总结"""
+        """执行晚安总结 - 按会话维度分离：个人总结 + 群聊总结
+        
+        设计原则：
+        - 个人晚安总结：只看 profiles/<uid>/memory/YYYY-MM-DD.md，发送给个人
+        - 群聊晚安总结：只看 groups/<gid>/memory/YYYY-MM-DD.md，发送到群聊
+        - 不做跨域：个人总结不包含群聊内容，群聊总结不包含个人内容
+        """
         logger.info("[Scriptor] 开始执行晚安总结...")
         today = datetime.now().strftime("%Y-%m-%d")
+        
+        await self._run_personal_evening_summary(today)
+        
+        await self._run_group_evening_summary(today)
+        
+        logger.info("[Scriptor] 晚安总结全部完成")
+
+    async def _run_personal_evening_summary(self, today: str):
+        """执行个人晚安总结"""
         summary_data = []
 
         for uid, meta in self.plugin.identity_manager.uid_metadata.items():
@@ -397,35 +412,88 @@ class BackgroundTasks:
 
             today_memory_file = profile_dir / "memory" / f"{today}.md"
 
-            conversation_summary = ""
+            conversation_preview = ""
             if today_memory_file.exists():
                 try:
                     content = today_memory_file.read_text(encoding="utf-8")
                     lines = content.split("\n")
                     conversation_lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
-                    conversation_summary = "\n".join(conversation_lines[-20:]) if conversation_lines else ""
+                    conversation_preview = "\n".join(conversation_lines[-20:]) if conversation_lines else ""
                 except Exception as e:
-                    logger.debug(f"[Scriptor] 读取今日记忆失败: {e}")
+                    logger.debug(f"[Scriptor] 读取今日个人记忆失败: {e}")
 
             summary_data.append(
                 {
                     "uid": uid,
                     "name": name,
-                    "today_file": str(today_memory_file),
-                    "conversation_preview": conversation_summary[:500] if conversation_summary else "今日无对话记录",
+                    "scope": "personal",
+                    "group_id": "private",
+                    "conversation_preview": conversation_preview[:2000] if conversation_preview else "今日无对话记录",
                 }
             )
-            logger.info(f"[Scriptor] 晚安总结 - 用户: {name}, 对话长度: {len(conversation_summary)}")
+            logger.info(f"[Scriptor] 个人晚安总结 - 用户: {name}, 对话长度: {len(conversation_preview)}")
 
         if summary_data:
-            logger.info(f"[Scriptor] 晚安总结已为 {len(summary_data)} 位用户生成，正在发送...")
+            logger.info(f"[Scriptor] 个人晚安总结已为 {len(summary_data)} 位用户生成，正在发送...")
             for data in summary_data:
                 await self.send_evening_summary_to_user(data)
         else:
-            logger.info("[Scriptor] 今日无活跃用户，跳过晚安总结")
+            logger.info("[Scriptor] 今日无活跃个人用户，跳过个人晚安总结")
+
+    async def _run_group_evening_summary(self, today: str):
+        """执行群聊晚安总结"""
+        groups_dir = self.plugin.data_dir / "groups"
+        if not groups_dir.exists():
+            logger.info("[Scriptor] 无群组目录，跳过群聊晚安总结")
+            return
+
+        summary_data = []
+
+        for group_dir in groups_dir.iterdir():
+            if not group_dir.is_dir():
+                continue
+
+            group_id = group_dir.name
+            group_memory_file = group_dir / "memory" / f"{today}.md"
+
+            if not group_memory_file.exists():
+                continue
+
+            conversation_preview = ""
+            try:
+                content = group_memory_file.read_text(encoding="utf-8")
+                lines = content.split("\n")
+                conversation_lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
+                conversation_preview = "\n".join(conversation_lines[-30:]) if conversation_lines else ""
+            except Exception as e:
+                logger.debug(f"[Scriptor] 读取群组 {group_id} 记忆失败: {e}")
+                continue
+
+            if not conversation_preview:
+                continue
+
+            group_name = self.plugin.group_manager.get_group_name(group_id)
+
+            summary_data.append(
+                {
+                    "uid": None,
+                    "name": group_name,
+                    "scope": "group",
+                    "group_id": group_id,
+                    "conversation_preview": conversation_preview[:2000],
+                }
+            )
+            logger.info(f"[Scriptor] 群聊晚安总结 - 群组: {group_name}, 对话长度: {len(conversation_preview)}")
+
+        if summary_data:
+            logger.info(f"[Scriptor] 群聊晚安总结已为 {len(summary_data)} 个群组生成，正在发送...")
+            for data in summary_data:
+                await self.send_evening_summary_to_group(data)
+        else:
+            logger.info("[Scriptor] 今日无活跃群组，跳过群聊晚安总结")
 
     async def send_evening_summary_to_user(self, data: dict):
-        """向用户发送晚安总结"""
+        """向用户发送晚安总结（个人维度）"""
         uid = data["uid"]
         name = data["name"]
         conversation_preview = data["conversation_preview"]
@@ -445,11 +513,76 @@ class BackgroundTasks:
         for umo in umo_list:
             try:
                 await self.plugin.context.send_message(umo, message_chain)
-                logger.info(f"[Scriptor] 晚安总结已发送给: {name} via {umo}")
+                logger.info(f"[Scriptor] 个人晚安总结已发送给: {name} via {umo}")
                 break
             except Exception as e:
                 logger.warning(f"[Scriptor] 通过 {umo} 发送失败: {e}")
                 continue
+
+    async def send_evening_summary_to_group(self, data: dict):
+        """向群组发送晚安总结（群聊维度）"""
+        group_id = data["group_id"]
+        group_name = data["name"]
+        conversation_preview = data["conversation_preview"]
+
+        summary_text = await self.generate_group_summary_with_llm(group_name, conversation_preview)
+
+        from astrbot.api.message_components import Plain
+        from astrbot.api.all import MessageChain
+
+        message_chain = MessageChain([Plain(summary_text)])
+
+        session_str = f"webchat!{group_id}!{group_id}"
+
+        try:
+            success = await self.plugin.context.send_message(session_str, message_chain)
+            if success:
+                logger.info(f"[Scriptor] 群聊晚安总结已发送到: {group_name}")
+            else:
+                logger.warning(f"[Scriptor] 群聊晚安总结发送失败: {group_name}")
+        except Exception as e:
+            logger.warning(f"[Scriptor] 发送群聊晚安总结到 {group_name} 失败: {e}")
+
+    async def generate_group_summary_with_llm(self, group_name: str, conversation_preview: str) -> str:
+        """使用 LLM 生成群聊每日总结"""
+        if not conversation_preview:
+            return f"🌙 晚安，{group_name}！今日群内暂无对话记录。祝大家好好休息！💤"
+
+        try:
+            prompt = f"""请为以下群聊今日对话记录生成一份简洁温馨的晚安总结。
+
+要求：
+1. 提炼今日群内互动的核心主题和关键事件
+2. 总结群成员的主要讨论内容和氛围
+3. 用温暖、亲切的语气，不超过 100 字
+4. 不要简单复述对话，要真正总结和提炼
+
+群聊名称：{group_name}
+今日对话记录：
+{conversation_preview[:2000]}
+
+请直接输出总结内容，不要有任何前缀或格式标记："""
+
+            response = await self.plugin.context.llm_generate(
+                chat_provider_id=await self.plugin.context.get_current_chat_provider_id(None),
+                prompt=prompt
+            )
+            
+            summary = response.completion_text.strip() if response.completion_text else conversation_preview[:200]
+
+            return f"""🌙 晚安，{group_name}！今日回顾：
+
+{summary}
+
+祝大家好好休息，明天见！💤"""
+
+        except Exception as e:
+            logger.error(f"[Scriptor] LLM 生成群聊每日总结失败: {e}")
+            return f"""🌙 晚安，{group_name}！今日回顾：
+
+{conversation_preview[:300]}
+
+祝大家好好休息，明天见！💤"""
 
     def generate_daily_summary_text(self, uid: str, name: str, conversation_preview: str, today_file: str) -> str:
         """生成每日总结文本（同步版本 - 回退）"""
@@ -497,10 +630,10 @@ class BackgroundTasks:
             logger.error(f"[Scriptor] LLM 生成每日总结失败: {e}")
             return self.generate_daily_summary_text(uid, name, conversation_preview, "")
 
-    async def run_heartbeat_review(self):
-        """执行后台复盘任务 (Heartbeat)"""
+    async def run_idle_consolidation(self):
+        """执行后台闲时整理任务"""
         try:
-            logger.info("[Scriptor] 开始执行后台复盘 (Heartbeat)...")
+            logger.info("[Scriptor] 开始执行后台闲时整理...")
 
             now = time.time()
             inactivity_threshold = getattr(self.plugin.config, "heartbeat_inactivity_threshold", 3600)
@@ -517,18 +650,18 @@ class BackgroundTasks:
                 session_id = f"{uid}_private"
 
                 if not self.plugin._has_new_content.get(session_id, False):
-                    logger.debug(f"[Scriptor] 用户 {uid} 无新内容，跳过复盘")
+                    logger.debug(f"[Scriptor] 用户 {uid} 无新内容，跳过整理")
                     continue
 
                 last_active = self.plugin._last_interaction_time.get(session_id, 0)
                 if now - last_active < inactivity_threshold:
-                    logger.debug(f"[Scriptor] 用户 {uid} 活跃中，跳过复盘")
+                    logger.debug(f"[Scriptor] 用户 {uid} 活跃中，跳过整理")
                     continue
 
                 if not uid_dir.exists():
                     continue
 
-                await self.review_user_working_files(uid, "private")
+                await self.consolidate_working_files(uid, "private")
                 self.plugin._has_new_content[session_id] = False
 
             groups_dir = self.plugin.data_dir / "groups"
@@ -540,43 +673,28 @@ class BackgroundTasks:
                     session_id = f"*_{gid}"
 
                     if not self.plugin._has_new_content.get(session_id, False):
-                        logger.debug(f"[Scriptor] 群组 {gid} 无新内容，跳过复盘")
+                        logger.debug(f"[Scriptor] 群组 {gid} 无新内容，跳过整理")
                         continue
 
                     last_active = self.plugin._last_interaction_time.get(session_id, 0)
                     if now - last_active < inactivity_threshold:
-                        logger.debug(f"[Scriptor] 群组 {gid} 活跃中，跳过复盘")
+                        logger.debug(f"[Scriptor] 群组 {gid} 活跃中，跳过整理")
                         continue
 
-                    await self.review_user_working_files("*", gid)
+                    await self.consolidate_working_files("*", gid)
                     self.plugin._has_new_content[session_id] = False
 
         except Exception as e:
-            logger.error(f"[Scriptor] 后台复盘失败: {e}")
+            logger.error(f"[Scriptor] 后台闲时整理失败: {e}")
 
-    async def review_user_working_files(self, uid: str, group_id: str):
-        """为特定用户/群组执行复盘"""
+    async def consolidate_working_files(self, uid: str, group_id: str):
+        """为特定用户/群组执行闲时文件整理"""
         try:
             working_context = self.plugin.file_manager.get_working_context(uid, group_id)
             if not working_context or "工作目录为空" in working_context:
                 return
 
-            heartbeat_instruction = ""
-            try:
-                if group_id == "private":
-                    hb_path = self.plugin.data_dir / "profiles" / uid / "P_HEARTBEAT.md"
-                else:
-                    hb_path = self.plugin.data_dir / "groups" / group_id / "G_HEARTBEAT.md"
-
-                if hb_path.exists():
-                    content = hb_path.read_text(encoding="utf-8").strip()
-                    lines = [line for line in content.splitlines() if line.strip() and not line.strip().startswith("#")]
-                    heartbeat_instruction = "\n".join(lines)
-            except Exception as e:
-                logger.debug(f"[Scriptor] 读取 HEARTBEAT 文件失败：{e}")
-
-            if not heartbeat_instruction:
-                heartbeat_instruction = """
+            consolidation_instruction = """
 1. 检查 `NOTES.md` 和 `TODO.md`。
 2. 识别出其中值得长期保留的重要事件、教训或见解。
 3. 如果有重要发现，请使用 `file_read_tool` 读取详情，然后使用 `file_append_tool` 或 `file_edit_tool` 将其提炼到 `MEMORY.md`。
@@ -588,8 +706,8 @@ class BackgroundTasks:
 
 {working_context}
 
-请执行以下后台复盘任务：
-{heartbeat_instruction}
+请执行以下后台整理任务：
+{consolidation_instruction}
 
 请直接开始行动（调用工具）。如果没有需要整理的内容，请直接回复"无需整理"。"""
 
@@ -742,3 +860,196 @@ class BackgroundTasks:
         )
 
         return result
+
+    async def run_heartbeat_loop(self):
+        """定时执行 Heartbeat 任务（学习 CoPaw 的设计）
+        
+        Heartbeat 是一个定时触发的主动任务系统：
+        - 系统每隔一定时间（默认 30 分钟）检查 HEARTBEAT.md 文件
+        - 如果文件有内容，就将其作为用户消息发送给 AI 执行
+        - 执行结果可以发送到对应的对话框
+        
+        三层架构：
+        - 全局 HEARTBEAT.md：对所有用户和群聊生效
+        - 群组 G_HEARTBEAT.md：只对该群聊生效
+        - 个人 P_HEARTBEAT.md：只对该用户私聊生效
+        """
+        heartbeat_interval = getattr(self.plugin.config, "heartbeat_interval", 1800)  # 默认 30 分钟
+        
+        while not self.plugin._is_terminating:
+            try:
+                await asyncio.sleep(heartbeat_interval)
+                
+                if self.plugin._is_terminating:
+                    break
+                
+                logger.info("[Scriptor] 开始执行 Heartbeat 任务...")
+                
+                await self._run_global_heartbeat()
+                await self._run_group_heartbeats()
+                await self._run_personal_heartbeats()
+                
+                logger.info("[Scriptor] Heartbeat 任务执行完成")
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[Scriptor] Heartbeat 任务执行失败: {e}")
+                await asyncio.sleep(60)
+
+    async def _run_global_heartbeat(self):
+        """执行全局 Heartbeat 任务"""
+        try:
+            global_hb_path = self.plugin.data_dir / "templates" / "global" / "HEARTBEAT.md"
+            if not global_hb_path.exists():
+                return
+            
+            content = global_hb_path.read_text(encoding="utf-8").strip()
+            if not content or content.startswith("#") or "暂无" in content:
+                return
+            
+            logger.info("[Scriptor] 执行全局 Heartbeat 任务...")
+            
+            result = await self._execute_heartbeat_task(content, "*", "global")
+            
+            if result:
+                logger.info(f"[Scriptor] 全局 Heartbeat 结果: {result[:100]}...")
+                
+        except Exception as e:
+            logger.error(f"[Scriptor] 全局 Heartbeat 执行失败: {e}")
+
+    async def _run_group_heartbeats(self):
+        """执行所有群组的 Heartbeat 任务"""
+        try:
+            groups_dir = self.plugin.data_dir / "groups"
+            if not groups_dir.exists():
+                return
+            
+            for gid_dir in groups_dir.iterdir():
+                if not gid_dir.is_dir():
+                    continue
+                
+                gid = gid_dir.name
+                hb_path = gid_dir / "G_HEARTBEAT.md"
+                
+                if not hb_path.exists():
+                    continue
+                
+                content = hb_path.read_text(encoding="utf-8").strip()
+                if not content or content.startswith("#") or "暂无" in content:
+                    continue
+                
+                logger.info(f"[Scriptor] 执行群组 {gid} Heartbeat 任务...")
+                
+                result = await self._execute_heartbeat_task(content, "*", gid)
+                
+                if result:
+                    await self._send_heartbeat_result(result, gid, "group")
+                    
+        except Exception as e:
+            logger.error(f"[Scriptor] 群组 Heartbeat 执行失败: {e}")
+
+    async def _run_personal_heartbeats(self):
+        """执行所有个人的 Heartbeat 任务"""
+        try:
+            profiles_dir = self.plugin.data_dir / "profiles"
+            if not profiles_dir.exists():
+                return
+            
+            for uid_dir in profiles_dir.iterdir():
+                if not uid_dir.is_dir():
+                    continue
+                
+                uid = uid_dir.name
+                hb_path = uid_dir / "P_HEARTBEAT.md"
+                
+                if not hb_path.exists():
+                    continue
+                
+                content = hb_path.read_text(encoding="utf-8").strip()
+                if not content or content.startswith("#") or "暂无" in content:
+                    continue
+                
+                logger.info(f"[Scriptor] 执行用户 {uid} Heartbeat 任务...")
+                
+                result = await self._execute_heartbeat_task(content, uid, "private")
+                
+                if result:
+                    await self._send_heartbeat_result(result, uid, "private")
+                    
+        except Exception as e:
+            logger.error(f"[Scriptor] 个人 Heartbeat 执行失败: {e}")
+
+    async def _execute_heartbeat_task(self, task_content: str, uid: str, scope: str) -> str:
+        """执行单个 Heartbeat 任务
+        
+        Args:
+            task_content: 任务内容（从 HEARTBEAT.md 读取）
+            uid: 用户 ID（全局和群组时为 "*"）
+            scope: 作用域 ("global", "group", "private")
+            
+        Returns:
+            执行结果文本
+        """
+        try:
+            messages = [
+                {"role": "system", "content": "你是一个正在执行定时任务的 AI 管家。请完成用户指定的任务并返回结果。"},
+                {"role": "user", "content": task_content},
+            ]
+            
+            llm_timeout = getattr(self.plugin.config, "llm_call_timeout", 60)
+            
+            response = await asyncio.wait_for(
+                self.plugin.context.tool_loop_agent(
+                    event=None,
+                    chat_provider_id=await self.plugin.context.get_current_chat_provider_id(None),
+                    contexts=messages,
+                    tool_call_timeout=llm_timeout
+                ),
+                timeout=llm_timeout * 1.5,
+            )
+            
+            if response and hasattr(response, "result_text"):
+                return response.result_text
+            elif response and isinstance(response, str):
+                return response
+            
+            return ""
+            
+        except asyncio.TimeoutError:
+            logger.warning(f"[Scriptor] Heartbeat 任务执行超时 (uid={uid}, scope={scope})")
+            return ""
+        except Exception as e:
+            logger.error(f"[Scriptor] Heartbeat 任务执行失败: {e}")
+            return ""
+
+    async def _send_heartbeat_result(self, result: str, target_id: str, scope: str):
+        """发送 Heartbeat 执行结果到对应的对话框
+        
+        Args:
+            result: 执行结果
+            target_id: 目标 ID（用户 ID 或群组 ID）
+            scope: 作用域 ("group" 或 "private")
+        """
+        try:
+            from astrbot.api.message_components import Plain
+            from astrbot.api.all import MessageChain
+            
+            msg_content = f"⏰ **Heartbeat 任务结果**\n\n{result}"
+            message_chain = MessageChain([Plain(msg_content)])
+            
+            session_str = None
+            if scope == "group":
+                session_str = f"webchat!{target_id}!{target_id}"
+            elif scope == "private":
+                session_str = f"webchat!{target_id}!{target_id}"
+            
+            if session_str:
+                success = await self.plugin.context.send_message(session_str, message_chain)
+                if success:
+                    logger.info(f"[Scriptor] Heartbeat 结果已发送到 {scope}:{target_id}")
+                else:
+                    logger.warning(f"[Scriptor] Heartbeat 结果发送失败: {scope}:{target_id}")
+                    
+        except Exception as e:
+            logger.error(f"[Scriptor] 发送 Heartbeat 结果失败: {e}")

@@ -153,8 +153,6 @@ class EventsMixin(BaseMixin):
         if group_id != "private":
             self.group_manager.record_group_interaction(group_id, uid, message, "member", mentions)
 
-        await self.cross_group_system.detect_and_route(group_id, message, uid, user_name)
-
     async def _handle_active_reply_decision(
         self,
         event: AstrMessageEvent,

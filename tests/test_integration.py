@@ -197,29 +197,6 @@ class TestMessageBufferingIntegration:
         assert len(flushed_messages) >= 0
 
 
-class TestCrossGroupMessageFlow:
-    """跨群消息流程集成测试"""
-
-    @pytest.mark.asyncio
-    async def test_group_message_cross_routing(self, tmp_path):
-        """测试群组消息跨群路由"""
-        identity_mgr = IdentityManager(tmp_path)
-        group_mgr = GroupManager(tmp_path, identity_mgr)
-        config = ScriptorConfig(cross_group_enabled=True, embedding_enabled=False)
-
-        from astrbot_plugin_scriptor.core.cross_group_message import CrossGroupMessageSystem
-
-        cross_group_system = CrossGroupMessageSystem(tmp_path, config, identity_mgr, group_mgr)
-
-        uid1 = identity_mgr.get_or_create_uid("user_g1", "platform", "用户1")
-
-        group1 = group_mgr.get_or_create_group("group_1", "群组1", "platform", uid1)
-
-        cross_group_system._save_direct()
-
-        assert group1.group_id is not None
-
-
 class TestProfileAndMemoryFlow:
     """画像与记忆流程集成测试"""
 

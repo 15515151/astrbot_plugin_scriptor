@@ -54,7 +54,6 @@ from .core.background_tasks import BackgroundTasks
 from .core.compactor import Compactor
 from .core.config_pydantic import ScriptorConfigPydantic
 from .core.conversation_ledger import ConversationLedger
-from .core.cross_group_message import CrossGroupMessageSystem
 from .core.file_manager import FileManager
 from .core.file_monitor import FileMonitor
 from .core.group_manager import GroupManager
@@ -199,9 +198,6 @@ class ScriptorPlugin(
         """初始化核心组件：身份、群组、记忆、会话等"""
         self.identity_manager = IdentityManager(self.data_dir)
         self.group_manager = GroupManager(self.data_dir, self.identity_manager)
-        self.cross_group_system = CrossGroupMessageSystem(
-            self.data_dir, self.config, self.identity_manager, self.group_manager
-        )
         self.memory_manager = MemoryManager(self.data_dir, self.config, self.identity_manager, self.group_manager)
         self.compactor = Compactor(self.config, self.context)
         self.conversation_ledger = ConversationLedger(self.data_dir)
@@ -328,6 +324,7 @@ class ScriptorPlugin(
         self._background_tasks.add(asyncio.create_task(self._lazy_init_components()))
         self._background_tasks.add(asyncio.create_task(self._scheduler_loop()))
         self._background_tasks.add(asyncio.create_task(self._nightly_graph_consolidation()))
+        self._background_tasks.add(asyncio.create_task(self._heartbeat_loop()))
 
         self._rebind_mixin_tool_handlers()
         self._register_scriptor_skills()
@@ -499,9 +496,6 @@ class ScriptorPlugin(
             logger.info("[Scriptor] 初始化媒体资源管理器...")
             await self.media_manager.initialize()
 
-            logger.info("[Scriptor] 启动跨群消息系统防抖写入器...")
-            await self.cross_group_system.start()
-
             logger.info("[Scriptor] 开始后台初始化 SearchEngine...")
             self.search_engine = SearchEngine(
                 self.data_dir, self.config, self.identity_manager, self.group_manager, self.memory_manager
@@ -518,7 +512,6 @@ class ScriptorPlugin(
                 self.identity_manager,
                 self.group_manager,
                 self.memory_manager,
-                self.cross_group_system,
                 self.file_manager,
                 self.archive_manager,
                 self.knowledge_graph,
@@ -844,6 +837,10 @@ class ScriptorPlugin(
         """夜间知识图谱整理任务"""
         await self.background_tasks.nightly_graph_consolidation()
 
+    async def _heartbeat_loop(self):
+        """定时执行 Heartbeat 任务"""
+        await self.background_tasks.run_heartbeat_loop()
+
     async def _run_graph_consolidation(self):
         """执行知识图谱整合（带超时保护）"""
         await self.background_tasks.run_graph_consolidation()
@@ -860,29 +857,13 @@ class ScriptorPlugin(
         """处理主动事件（如早安、晚安、复盘）"""
         await self.background_tasks.handle_proactive_event(event_type, uid, group_id)
 
-    async def _run_morning_greeting(self):
-        """执行早安问候"""
-        await self.background_tasks.run_morning_greeting()
+    async def _run_idle_consolidation(self):
+        """执行后台闲时整理任务"""
+        await self.background_tasks.run_idle_consolidation()
 
-    async def _send_morning_greeting_to_user(self, uid: str, name: str):
-        """向用户发送早安问候"""
-        await self.background_tasks.send_morning_greeting_to_user(uid, name)
-
-    async def _run_evening_summary(self):
-        """执行晚安总结 - 收集今日活跃用户并生成个性化总结"""
-        await self.background_tasks.run_evening_summary()
-
-    async def _send_evening_summary_to_user(self, data: dict):
-        """向用户发送晚安总结"""
-        await self.background_tasks.send_evening_summary_to_user(data)
-
-    async def _run_heartbeat_review(self):
-        """执行后台复盘任务 (Heartbeat)"""
-        await self.background_tasks.run_heartbeat_review()
-
-    async def _review_user_working_files(self, uid: str, group_id: str):
-        """为特定用户/群组执行复盘"""
-        await self.background_tasks.review_user_working_files(uid, group_id)
+    async def _consolidate_working_files(self, uid: str, group_id: str):
+        """为特定用户/群组执行闲时文件整理"""
+        await self.background_tasks.consolidate_working_files(uid, group_id)
 
     async def _handle_web_search(self, event, query: str, depth: str = "normal", save_to_memory: bool = False):
         """处理网页搜索请求"""
@@ -891,10 +872,6 @@ class ScriptorPlugin(
     def _build_graph_extraction_prompt(self, content: str, uid: str, user_name: str) -> str:
         """构建知识图谱提取 Prompt"""
         return self.background_tasks.build_graph_extraction_prompt(content, uid, user_name)
-
-    async def _generate_daily_summary_text(self, uid: str, name: str, conversation_preview: str, today_file: str = "") -> str:
-        """生成每日总结文本（使用 LLM）"""
-        return await self.background_tasks.generate_daily_summary_with_llm(uid, name, conversation_preview)
 
     def _get_user_preferred_name(self, uid: str) -> str:
         """获取用户偏好名称"""
@@ -1113,10 +1090,6 @@ class ScriptorPlugin(
             self._is_terminating = True
 
             await self._stop_web_ui()
-
-            if self.cross_group_system:
-                logger.info("[Scriptor] 停止跨群消息系统...")
-                await self.cross_group_system.stop()
 
             if self.file_monitor:
                 logger.info("[Scriptor] 停止文件监控...")

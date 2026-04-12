@@ -33,14 +33,11 @@ class MemoryMixin(BaseMixin):
         user_name = self.identity_manager.get_user_primary_name(uid)
         user_groups = self.identity_manager.get_user_groups(uid)
 
-        pending_messages = self.cross_group_system.get_pending_messages(group_id)
-
         msg = f"""## 🧠 Scriptor 记忆系统状态
 
 - **用户**: {user_name} (UID: {uid})
 - **当前群体**: {group_id}
 - **参与群体数**: {len(user_groups)}
-- **待处理跨群消息**: {len(pending_messages)}
 
 ### 当前群体成员
 """
@@ -51,13 +48,6 @@ class MemoryMixin(BaseMixin):
                 msg += f"- {m.alias} ({m.role})\n"
             if len(members) > 5:
                 msg += f"... 还有 {len(members) - 5} 人\n"
-
-        msg += "\n### 跨群待办\n"
-        if pending_messages:
-            for pm in pending_messages[:3]:
-                msg += f"- [{pm.source_group}] {pm.content[:30]}...\n"
-        else:
-            msg += "无\n"
 
         yield event.plain_result(msg)
 

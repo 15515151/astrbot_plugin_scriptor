@@ -2,7 +2,7 @@
 """Scriptor 提示词构建模块 - 渐进式披露模式
 
 重构说明：
-- 保留必须全量加载的核心文件（SOUL、HEARTBEAT、权限、TODO、BOOTSTRAP）
+- 保留必须全量加载的核心文件（SOUL、权限、TODO、BOOTSTRAP）
 - 将大体积文件（PROFILE、MEMORY、SOP、AGENTS、日记）改为目录索引模式
 - 通过 ContextIndexer 生成精简的上下文目录树，AI 按需读取详细内容
 - 大幅降低基础 Token 消耗，提升响应速度和性价比
@@ -31,7 +31,6 @@ class PromptBuilder:
         identity_manager,
         group_manager,
         memory_manager,
-        cross_group_system,
         file_manager=None,
         archive_manager=None,
         knowledge_graph=None,
@@ -43,7 +42,6 @@ class PromptBuilder:
         self.identity_manager = identity_manager
         self.group_manager = group_manager
         self.memory_manager = memory_manager
-        self.cross_group_system = cross_group_system
         self.file_manager = file_manager
         self.archive_manager = archive_manager
         self.knowledge_graph = knowledge_graph
@@ -368,7 +366,7 @@ created: "2026-04-10"
    - **收到此错误后，请立即停止并等待用户指令**
    - 不要重复调用 `file_delete_tool`，不要尝试其他删除方式
    - 用户回复 `/delete` 后系统会自动执行删除，用户回复其他内容则取消
-5. **自我整理**：在后台复盘时，你会根据 `HEARTBEAT.md` 的指令，将 `NOTES.md` 中的零散信息提炼到 `MEMORY.md`
+5. **自我整理**：在后台闲时整理时，你会将 `NOTES.md` 中的零散信息提炼到 `MEMORY.md`
 6. **维护元数据**：当你使用工具更新 `PROFILE.md` 或其他带有 `last_refined` 字段的文件时，请务必同时将该字段更新为当前时间
 
 ### 🔧 工具使用策略（v2.0 智能指引）
@@ -638,7 +636,7 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         构建完整的系统提示词（带智能 Token 控制）- 渐进式披露模式
 
         策略：
-        1. 必须全量加载：SOUL、HEARTBEAT、权限、TODO、BOOTSTRAP（短小/实时性要求高）
+        1. 必须全量加载：SOUL、权限、TODO、BOOTSTRAP（短小/实时性要求高）
         2. 改为目录索引：PROFILE、MEMORY、SOP、AGENTS、日记（大体积/按需读取）
         3. 新增：Context Indexer 生成的上下文目录树
         """
@@ -691,10 +689,6 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
             if group_context.get("members"):
                 member_list = "\n".join(["- %s (%s)" % (m["alias"], m["role"]) for m in group_context["members"]])
                 prompt_parts.append("# 群体成员\n" + member_list)
-
-            cross_group_tasks = self.cross_group_system.format_pending_notifications(group_id)
-            if cross_group_tasks:
-                prompt_parts.append(cross_group_tasks)
 
         # [Personal] 个人文件（放在群组文件之后）
         soul_file = profile_dir / "P_SOUL.md"
@@ -761,11 +755,11 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         - 移除 Global MEMORY.md 的全量注入
         - 移除 最近日记的全量注入
         - 新增 ContextIndexer 生成的上下文目录树
-        - 保留 SOUL、HEARTBEAT、权限、TODO、BOOTSTRAP 的全量加载
+        - 保留 SOUL、权限、TODO、BOOTSTRAP 的全量加载
         - 【Prompt Caching 优化】严格的静动分离 + 群组优先策略：
           * 第一层（常驻静态区）：Global(100) -> Group(99-97) -> Personal(96-94)
           * 第二层（动态索引区）：ContextIndexer 目录索引 (89) + 知识图谱 (80)
-          * 第三层（绝对动态区）：HEARTBEAT(30)、规则/成员(29-27)、TODO(26)、Bootstrap(25)
+          * 第三层（绝对动态区）：规则/成员(29-27)、TODO(26)、Bootstrap(25)
         """
         trimmer = SmartMemoryTrimmer(self.config.max_system_prompt_tokens)
 
@@ -871,28 +865,7 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
         # ========== 第三段：绝对动态区 (Dynamic Zone) - 缓存破坏者 ==========
         # 这些内容频繁变动，必须放在最后
 
-        # 7. 心跳指令 (HEARTBEAT) - 三层架构：全局 -> 群组 -> 个人
-        # 7.1 全局心跳 (Global HEARTBEAT.md) - 全局临时指令
-        global_heartbeat_content = self._load_global_template("HEARTBEAT.md")
-        if global_heartbeat_content and global_heartbeat_content.strip():
-            trimmer.add_part("global_heartbeat", "# 全局临时指令 (Global HEARTBEAT)\n" + global_heartbeat_content, 30)
-
-        # 7.2 群组心跳 (G_HEARTBEAT.md) - 群组专属临时指令（仅群聊加载）
-        if group_id != "private":
-            group_heartbeat_file = self.data_dir / "groups" / group_id / "G_HEARTBEAT.md"
-            if group_heartbeat_file.exists():
-                group_heartbeat_content = group_heartbeat_file.read_text(encoding="utf-8")
-                if group_heartbeat_content.strip():
-                    trimmer.add_part("group_heartbeat", "# 群组临时指令 (Group HEARTBEAT)\n" + group_heartbeat_content, 29.5)
-
-        # 7.3 个人心跳 (P_HEARTBEAT.md) - 个人专属临时指令
-        personal_heartbeat_file = profile_dir / "P_HEARTBEAT.md"
-        if personal_heartbeat_file.exists():
-            personal_heartbeat_content = personal_heartbeat_file.read_text(encoding="utf-8")
-            if personal_heartbeat_content.strip():
-                trimmer.add_part("personal_heartbeat", "# 个人临时指令 (Personal HEARTBEAT)\n" + personal_heartbeat_content, 29)
-
-        # 8. 群体规则和成员（实时性要求高）
+        # 7. 群体规则和成员（实时性要求高）
         if group_id != "private":
             group_context = self.group_manager.get_group_context(group_id, uid)
 
@@ -902,10 +875,6 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
             if group_context.get("members"):
                 member_list = "\n".join(["- %s (%s)" % (m["alias"], m["role"]) for m in group_context["members"]])
                 trimmer.add_part("group_members", "# 群体成员\n" + member_list, 28)
-
-            cross_group_tasks = self.cross_group_system.format_pending_notifications(group_id)
-            if cross_group_tasks:
-                trimmer.add_part("cross_group_tasks", cross_group_tasks, 27)
 
         # 9. TODO 热记忆上下文（必须加载，实时性要求高）
         todo_context = self._build_todo_context(uid, group_id)
@@ -1010,7 +979,3 @@ tool_search_tool(query="读取文件")  # 应该直接用 file_read_tool！
             parts.append("## 群体成员\n" + member_list)
 
         return "\n\n".join(parts)
-
-    def load_pending_tasks(self, uid, group_id):
-        """加载跨群待办"""
-        return self.cross_group_system.format_pending_notifications(group_id)

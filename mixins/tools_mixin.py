@@ -770,37 +770,6 @@ class ToolsMixin(BaseMixin):
             return f"❌ {message}"
 
     @filter.llm_tool()
-    async def create_reminder(
-        self, event: AstrMessageEvent, message: str, target_groups: str = "auto", remind_at: str = "today"
-    ):
-        """
-        创建跨群提醒任务。
-
-        Args:
-            message (str): 提醒内容
-            target_groups (str): 目标群体，逗号分隔，或 "auto" 自动选择
-            remind_at (str): 提醒时间
-
-        Returns:
-            确认消息
-        """
-        uid, source_group, _ = self._get_identity(event)
-
-        if target_groups == "auto":
-            target_list = self.group_manager.get_other_groups(uid, source_group)
-        else:
-            target_list = [g.strip() for g in target_groups.split(",")]
-
-        if not target_list:
-            return "❌ 没有其他群可以投递。"
-
-        await self.cross_group_system.create_reminder(
-            source_group=source_group, target_groups=target_list, message=message, author_uid=uid, remind_at=remind_at
-        )
-
-        return f"✅ 已创建跨群提醒，目标群体: {', '.join(target_list)}"
-
-    @filter.llm_tool()
     async def add_schedule_task(
         self, event: AstrMessageEvent, task_content: str, trigger_time: str, recurrence: str = ""
     ):

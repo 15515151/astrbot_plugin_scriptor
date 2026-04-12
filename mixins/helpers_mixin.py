@@ -485,41 +485,6 @@ class HelpersMixin(BaseMixin):
 
         return None
 
-    def _extract_key_events_from_memory(self, content: str) -> List[str]:
-        """从记忆内容中提取关键事件
-
-        提取规则：
-        1. 包含决策、确定、决定等关键词
-        2. 包含待办、任务、计划等关键词
-        3. 包含重要信息、提醒等
-        4. 过滤掉简单的问答和寒暄
-        """
-        import re
-
-        key_patterns = [
-            r"(.*(?:决定|确定|定了|选择|选定).*)",
-            r"(.*(?:待办|任务|计划|安排|提醒|记得|别忘了).*)",
-            r"(.*(?:重要|关键|注意|需要).*)",
-            r"(.*(?:完成|搞定|做完|解决).*)",
-            r"(.*(?:目标|里程碑|进度).*)",
-        ]
-
-        key_events = []
-        lines = content.split("\n")
-
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-
-            for pattern in key_patterns:
-                if re.match(pattern, line, re.IGNORECASE):
-                    if line not in key_events and len(line) > 5:
-                        key_events.append(line)
-                    break
-
-        return key_events[:5]
-
     async def _get_pending_tasks_for_user(self, uid: str) -> List[str]:
         """使用AI从用户最近的记忆中智能提取待办事项
 
@@ -622,44 +587,6 @@ class HelpersMixin(BaseMixin):
         if len(text) > 80:
             text = text[:77] + "..."
         return text
-
-    def _generate_daily_summary_text(self, uid: str, name: str, conversation_preview: str, today_file: str) -> str:
-        """生成每日总结文本
-
-        Args:
-            uid: 用户逻辑 UID
-            name: 用户默认名称（从 identity_manager 获取）
-            conversation_preview: 对话预览内容
-            today_file: 今日记忆文件路径（仅用于日志，不显示给用户）
-        """
-        preferred_name = self._get_user_preferred_name(uid)
-        display_name = preferred_name if preferred_name else name
-
-        lines = [
-            f"🌙 {display_name}，晚安！",
-            "",
-            "—— 今日对话回顾 ——",
-            "",
-        ]
-
-        if conversation_preview and conversation_preview != "今日无对话记录":
-            content_lines = [l for l in conversation_preview.split("\n") if l.strip() and not l.strip().startswith("#")]
-            lines.append(f"📝 今日共 {len(content_lines)} 条对话记录")
-            lines.append("")
-
-            key_events = self._extract_key_events_from_memory(conversation_preview)
-            if key_events:
-                lines.append("**📌 今日要点：**")
-                for event in key_events:
-                    lines.append(f"• {event[:80]}{'...' if len(event) > 80 else ''}")
-            else:
-                lines.append("今日对话较为轻松，无重要事项记录。")
-        else:
-            lines.append("今日暂无对话记录")
-
-        lines.extend(["", "💤 好好休息，明天见！"])
-
-        return "\n".join(lines)
 
     async def _read_document_content(self, file_path: Path, ext: str) -> str:
         """读取文档内容"""
