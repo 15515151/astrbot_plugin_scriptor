@@ -19,9 +19,10 @@ class IdentityMixin(BaseMixin):
     - 身份绑定/解绑/重置命令
     - 身份信息查询命令
     - 权限管理工具
+    
+    注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
     """
 
-    @filter.command("whoami")
     async def cmd_whoami(self, event: AstrMessageEvent):
         """查看当前身份信息"""
         uid, group_id, physical_id = self._get_identity(event)
@@ -41,7 +42,6 @@ class IdentityMixin(BaseMixin):
 """
         yield event.plain_result(msg)
 
-    @filter.command("get_bind_code")
     async def cmd_get_bind_code(self, event: AstrMessageEvent):
         """生成从属绑定码（本设备将作为从属，记忆将被清空）
 
@@ -84,7 +84,6 @@ class IdentityMixin(BaseMixin):
 """
         yield event.plain_result(msg)
 
-    @filter.command("bind")
     async def cmd_bind(self, event: AstrMessageEvent, bind_code: str = None, confirm_token: str = None):
         """绑定设备（反向绑定模式）
 
@@ -205,7 +204,6 @@ class IdentityMixin(BaseMixin):
         else:
             logger.warning(f"[Scriptor] 未找到需要清理的从属设备会话 (secondary_uid={secondary_uid})")
 
-    @filter.command("unbind")
     async def cmd_unbind(self, event: AstrMessageEvent, unbind_token: str = None, confirm_token: str = None):
         """解绑当前设备（两步确认）
 
@@ -280,7 +278,6 @@ class IdentityMixin(BaseMixin):
         new_uid = result["new_uid"]
         yield event.plain_result(f"🎉 解绑成功！已为您分配全新的记忆脑区: {new_uid}，一切从零开始。")
 
-    @filter.command("reset_identity")
     async def cmd_reset_identity(
         self, event: AstrMessageEvent, reset_token: str = None, step: str = None, code: str = None
     ):
@@ -381,7 +378,6 @@ class IdentityMixin(BaseMixin):
             f"💥 记忆脑区已彻底格式化。\n\n当前身份 ({uid}) 已重置为出厂状态，所有绑定设备将从零开始。"
         )
 
-    @filter.command("debug_identity")
     async def cmd_debug_identity(self, event: AstrMessageEvent):
         """[调试] 查看当前用户的身份映射详情（仅私聊或管理员可用）"""
         is_private = event.is_private() if hasattr(event, "is_private") else False

@@ -19,9 +19,10 @@ class LearningMixin(BaseMixin):
     - 学习模式命令
     - 授课模式命令
     - 学习状态查询
+    
+    注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
     """
 
-    @filter.command("开始学习")
     async def cmd_start_learning(self, event: AstrMessageEvent):
         """进入学习模式（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)
@@ -41,7 +42,6 @@ class LearningMixin(BaseMixin):
 
         yield event.plain_result(f"{'✅' if success else '❌'} {message}")
 
-    @filter.command("结束学习")
     async def cmd_end_learning(self, event: AstrMessageEvent):
         """退出学习模式（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)
@@ -54,7 +54,6 @@ class LearningMixin(BaseMixin):
 
         yield event.plain_result(f"{'✅' if success else '❌'} {message}")
 
-    @filter.command("开始授课")
     async def cmd_start_teaching(self, event: AstrMessageEvent):
         """进入授课模式（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)
@@ -74,7 +73,6 @@ class LearningMixin(BaseMixin):
 
         yield event.plain_result(f"{'✅' if success else '❌'} {message}")
 
-    @filter.command("结束授课")
     async def cmd_end_teaching(self, event: AstrMessageEvent):
         """退出授课模式（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)
@@ -87,7 +85,6 @@ class LearningMixin(BaseMixin):
 
         yield event.plain_result(f"{'✅' if success else '❌'} {message}")
 
-    @filter.command("学习状态")
     async def cmd_learning_status(self, event: AstrMessageEvent):
         """查看当前学习状态"""
         uid, group_id, _ = self._get_identity(event)
