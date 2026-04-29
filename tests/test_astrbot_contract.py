@@ -212,30 +212,49 @@ class AstrBotContractChecker:
         return ""
 
     def _check_command_decorators(self) -> Dict[str, Any]:
-        """检查命令代理方法的装饰器"""
+        """检查命令代理方法的装饰器
+
+        架构说明：
+        - main.py 中的代理方法必须有 @filter.command() 装饰器
+        - Mixin 中的方法只保留实现，不包含 @filter.command() 装饰器
+          （这是为了避免指令冲突，同一个指令被注册两次）
+        """
         errors = []
         warnings = []
 
-        all_mixin_commands = {}
+        # 收集所有 Mixin 中的方法（通过扫描 Mixin 文件中的所有 async def）
+        all_mixin_methods = set()
         for mixin_info in self._mixin_methods.values():
-            all_mixin_commands.update(mixin_info.commands)
+            # 将 CamelCase 转换为 snake_case: LearningMixin -> learning_mixin
+            import re
+            snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', mixin_info.name).lower()
+            mixin_file = self.plugin_root / "mixins" / f"{snake_name}.py"
+            if mixin_file.exists():
+                source = mixin_file.read_text(encoding="utf-8")
+                mixin_tree = ast.parse(source)
+                for node in ast.walk(mixin_tree):
+                    if isinstance(node, ast.AsyncFunctionDef):
+                        if node.name.startswith("cmd_"):
+                            all_mixin_methods.add(node.name)
 
         super_call_map = self._build_super_call_map()
 
+        # 检查 main.py 中的命令代理方法（只检查有 @filter.command 装饰器的方法）
         for method_name, main_method in self._main_methods.items():
             if main_method.has_command_decorator:
                 called_method = super_call_map.get(method_name)
                 if called_method:
-                    if called_method not in all_mixin_commands:
+                    if called_method not in all_mixin_methods:
                         warnings.append(
                             f"main.py:{main_method.line_number} - 命令方法 '{method_name}' "
-                            f"调用的 super().{called_method}() 不是有效的 Mixin 命令方法"
+                            f"调用的 super().{called_method}() 不是有效的 Mixin 方法"
                         )
                 else:
+                    # 检查是否有直接的方法体（不是 super() 调用）
                     expected_mixin_name = f"cmd_{method_name}"
-                    if expected_mixin_name not in all_mixin_commands:
+                    if expected_mixin_name not in all_mixin_methods:
                         matching_methods = [
-                            m for m in all_mixin_commands if m.endswith(f"_{method_name}") or m == method_name
+                            m for m in all_mixin_methods if m.endswith(f"_{method_name}") or m == method_name
                         ]
                         if not matching_methods:
                             warnings.append(
@@ -243,28 +262,40 @@ class AstrBotContractChecker:
                                 f"没有对应的 Mixin 实现 (期望: {expected_mixin_name})"
                             )
 
-        for mixin_method_name, mixin_method in all_mixin_commands.items():
+        # 检查 Mixin 中的 cmd_ 方法在 main.py 中有对应的代理方法
+        for mixin_method_name in all_mixin_methods:
             found = False
             for proxy_name, called_name in super_call_map.items():
                 if called_name == mixin_method_name:
                     found = True
-                    if proxy_name not in self._main_methods:
-                        errors.append(f"main.py - Mixin 命令 '{mixin_method_name}' 的代理方法 '{proxy_name}' 不存在")
-                    elif not self._main_methods[proxy_name].has_command_decorator:
-                        errors.append(
-                            f"main.py:{self._main_methods[proxy_name].line_number} - "
-                            f"代理方法 '{proxy_name}' 缺少 @filter.command() 装饰器"
-                        )
+                    # 只检查有 @filter.command 装饰器的代理方法
+                    if proxy_name in self._main_methods:
+                        if self._main_methods[proxy_name].has_command_decorator:
+                            # 命令代理方法有 @filter.command，检查通过
+                            pass
+                        elif self._main_methods[proxy_name].has_event_decorator:
+                            # 事件方法，不应该检查 @filter.command
+                            pass
+                        else:
+                            # 既不是命令也不是事件，可能是错误
+                            warnings.append(
+                                f"main.py:{self._main_methods[proxy_name].line_number} - "
+                                f"代理方法 '{proxy_name}' 既没有 @filter.command 也没有事件装饰器"
+                            )
+                    else:
+                        errors.append(f"main.py - Mixin 方法 '{mixin_method_name}' 的代理方法 '{proxy_name}' 不存在")
                     break
 
             if not found:
                 proxy_name = mixin_method_name.replace("cmd_", "")
-                if proxy_name in self._main_methods and self._main_methods[proxy_name].has_command_decorator:
-                    continue
+                if proxy_name in self._main_methods:
+                    if self._main_methods[proxy_name].has_command_decorator:
+                        continue  # 有命令装饰器，检查通过
+                    elif self._main_methods[proxy_name].has_event_decorator:
+                        continue  # 有事件装饰器，也检查通过（可能是事件代理）
 
                 errors.append(
-                    f"{mixin_method.source_file}:{mixin_method.line_number} - "
-                    f"Mixin 命令 '{mixin_method_name}' 在 main.py 中缺少代理方法"
+                    f"Mixin 方法 '{mixin_method_name}' 在 main.py 中缺少代理方法"
                 )
 
         return {
@@ -411,11 +442,19 @@ class AstrBotContractChecker:
         source_code = self.main_py_path.read_text(encoding="utf-8")
         tree = ast.parse(source_code)
 
+        # 收集所有 Mixin 中的方法（通过扫描 Mixin 文件）
         all_mixin_methods = set()
         for mixin_info in self._mixin_methods.values():
-            all_mixin_methods.update(mixin_info.commands.keys())
-            all_mixin_methods.update(mixin_info.tools.keys())
-            all_mixin_methods.update(mixin_info.events.keys())
+            # 将 CamelCase 转换为 snake_case: LearningMixin -> learning_mixin
+            import re
+            snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', mixin_info.name).lower()
+            mixin_file = self.plugin_root / "mixins" / f"{snake_name}.py"
+            if mixin_file.exists():
+                mixin_source = mixin_file.read_text(encoding="utf-8")
+                mixin_tree = ast.parse(mixin_source)
+                for node in ast.walk(mixin_tree):
+                    if isinstance(node, ast.AsyncFunctionDef):
+                        all_mixin_methods.add(node.name)
 
         for node in ast.walk(tree):
             if isinstance(node, ast.AsyncFunctionDef):

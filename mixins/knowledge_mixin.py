@@ -20,9 +20,10 @@ class KnowledgeMixin(BaseMixin):
     - 知识库搜索工具
     - 知识添加工具
     - 研究工具
+
+    注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
     """
 
-    @filter.command("kb_status")
     async def cmd_kb_status(self, event: AstrMessageEvent):
         """查看知识库状态"""
         await self._wait_for_ready()

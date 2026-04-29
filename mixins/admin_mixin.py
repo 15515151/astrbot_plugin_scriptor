@@ -8,6 +8,8 @@
 - /sudo_status 命令
 
 使用 IdentityManager 的 sudo 功能
+
+注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
 """
 
 from __future__ import annotations
@@ -32,7 +34,6 @@ class AdminMixin(BaseMixin):
     - 管理员状态查询
     """
 
-    @filter.command("sudo_state_up")
     async def cmd_sudo_state_up(self, event: AstrMessageEvent):
         """进入管理员模式"""
         uid, group_id, _ = self._get_identity(event)
@@ -44,7 +45,6 @@ class AdminMixin(BaseMixin):
 
         yield event.plain_result(message)
 
-    @filter.command("sudo_state_down")
     async def cmd_sudo_state_down(self, event: AstrMessageEvent):
         """退出管理员模式"""
         uid, group_id, _ = self._get_identity(event)
@@ -56,7 +56,6 @@ class AdminMixin(BaseMixin):
 
         yield event.plain_result(message)
 
-    @filter.command("sudo_status")
     async def cmd_sudo_status(self, event: AstrMessageEvent):
         """查看管理员状态"""
         uid, group_id, _ = self._get_identity(event)
@@ -100,7 +99,6 @@ class AdminMixin(BaseMixin):
 
         yield event.plain_result("\n".join(msg_lines))
 
-    @filter.command("sudo_sessions")
     async def cmd_sudo_sessions(self, event: AstrMessageEvent):
         """查看所有活跃的 sudo 会话（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)
@@ -126,7 +124,6 @@ class AdminMixin(BaseMixin):
 
         yield event.plain_result("\n".join(msg_lines))
 
-    @filter.command("sudo_audit")
     async def cmd_sudo_audit(self, event: AstrMessageEvent):
         """查看管理员操作审计日志（仅管理员）"""
         uid, group_id, _ = self._get_identity(event)

@@ -39,6 +39,18 @@ class EmbeddingConfig(BaseModel):
     embedding_api_key: Optional[str] = Field(default=None, description="嵌入 API 密钥")
     embedding_model: str = Field("AI-ModelScope/bge-small-zh-v1.5", description="嵌入模型名称")
 
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, v):
+        if v not in ["local", "api"]:
+            import logging
+            logging.getLogger("scriptor").warning(
+                f"[Scriptor] embedding_provider 值 '{v}' 无效，已自动回退为 'local'。"
+                f"有效值: local, api"
+            )
+            return "local"
+        return v
+
 
 class RerankConfig(BaseModel):
     """重排配置"""
@@ -54,7 +66,12 @@ class RerankConfig(BaseModel):
     @classmethod
     def validate_rerank_provider(cls, v):
         if v not in ["local", "api"]:
-            raise ValueError('rerank_provider 必须是 "local" 或 "api"')
+            import logging
+            logging.getLogger("scriptor").warning(
+                f"[Scriptor] rerank_provider 值 '{v}' 无效，已自动回退为 'api'。"
+                f"有效值: local, api"
+            )
+            return "api"
         return v
 
 
@@ -301,13 +318,6 @@ class ScriptorConfigPydantic(BaseModel):
 
         super().__setattr__(name, value)
 
-    @field_validator("embedding")
-    @classmethod
-    def validate_embedding(cls, v: EmbeddingConfig) -> EmbeddingConfig:
-        if v.embedding_provider not in ["local", "api"]:
-            raise ValueError('embedding_provider 必须是 "local" 或 "api"')
-        return v
-
     @model_validator(mode="after")
     def validate_consistency(self):
         if self.rerank.rerank_enabled and self.rerank.rerank_top_k > self.search.search_top_k:
@@ -465,12 +475,23 @@ class ScriptorConfigPydantic(BaseModel):
 
     @classmethod
     def load_from_file(cls, config_path: Path) -> "ScriptorConfigPydantic":
-        """从配置文件加载"""
+        """从配置文件加载（含容错机制）
+
+        如果配置文件损坏或包含非法值，自动回退到默认配置，
+        而不是抛出异常导致插件永久无法加载。
+        """
         if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_json = json.load(f)
-            config_dict = config_json.get("scriptor", config_json)
-            return cls.load_from_flat_dict(config_dict)
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config_json = json.load(f)
+                config_dict = config_json.get("scriptor", config_json)
+                return cls.load_from_flat_dict(config_dict)
+            except Exception as e:
+                import logging
+                logging.getLogger("scriptor").warning(
+                    f"[Scriptor] 配置文件加载失败，已回退到默认配置: {e}"
+                )
+                return cls()
         return cls()
 
     def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:

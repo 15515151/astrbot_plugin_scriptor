@@ -129,13 +129,14 @@ class TestMainPyIntegration:
         print("✅ main.py 导入验证通过")
 
     def test_commands_registered(self):
-        """验证学习模式命令已注册"""
-        learning_mixin_file = project_root / "mixins" / "learning_mixin.py"
-        if learning_mixin_file.exists():
-            content = learning_mixin_file.read_text(encoding="utf-8")
-        else:
-            main_file = project_root / "main.py"
-            content = main_file.read_text(encoding="utf-8")
+        """验证学习模式命令已注册
+
+        注意：命令装饰器已统一移至 main.py 中注册，Mixin 中只保留方法实现。
+        这是为了避免指令冲突（同一个指令被注册两次）。
+        """
+        # 验证 main.py 中注册了命令
+        main_file = project_root / "main.py"
+        main_content = main_file.read_text(encoding="utf-8")
 
         commands = [
             '@filter.command("开始学习")',
@@ -146,7 +147,11 @@ class TestMainPyIntegration:
         ]
 
         for cmd in commands:
-            assert cmd in content, f"应注册命令：{cmd}"
+            assert cmd in main_content, f"应在 main.py 中注册命令：{cmd}"
+
+        # 验证 learning_mixin.py 中包含方法实现（但不含装饰器）
+        learning_mixin_file = project_root / "mixins" / "learning_mixin.py"
+        mixin_content = learning_mixin_file.read_text(encoding="utf-8")
 
         functions = [
             "async def cmd_start_learning",
@@ -157,9 +162,13 @@ class TestMainPyIntegration:
         ]
 
         for func in functions:
-            assert func in content, f"应包含函数：{func}"
+            assert func in mixin_content, f"应在 learning_mixin.py 中包含函数：{func}"
 
-        print("✅ 学习模式命令注册验证通过")
+        # 验证 Mixin 中不包含装饰器（避免指令冲突）
+        for cmd in commands:
+            assert cmd not in mixin_content, f"应避免在 Mixin 中重复注册命令：{cmd}"
+
+        print("✅ 学习模式命令注册验证通过（架构：main.py 注册，Mixin 实现）")
 
     def test_learning_manager_initialization(self):
         """验证 LearningManager 初始化"""

@@ -1,70 +1,91 @@
 @echo off
-chcp 65001 >nul 2>&1
+REM Scriptor v2.0 Dependency Installation Script
+REM Compatible with Windows CMD (GBK/UTF-8)
+
 echo ========================================
-echo   Scriptor v2.0 依赖安装脚本
+echo   Scriptor v2.0 - Install Dependencies
 echo ========================================
 echo.
 
-python --version >nul 2>&1
+REM Step 1: Detect Python (prefer venv)
+echo [Step 1/4] Detecting Python environment...
+
+REM Check for AstrBot venv first
+set "PYTHON_CMD=python"
+set "PIP_CMD=pip"
+
+if exist "%~dp0..\..\..\.venv\Scripts\python.exe" (
+    set "PYTHON_CMD=%~dp0..\..\..\.venv\Scripts\python.exe"
+    set "PIP_CMD=%~dp0..\..\..\.venv\Scripts\pip.exe"
+    echo   Found AstrBot venv: %PYTHON_CMD%
+) else if exist "%~dp0..\..\..\.venv\Scripts\pip.exe" (
+    set "PIP_CMD=%~dp0..\..\..\.venv\Scripts\pip.exe"
+    echo   Found AstrBot venv pip: %PIP_CMD%
+) else (
+    echo   Using system Python
+)
+
+%PYTHON_CMD% --version >nul 2>&1
 if errorlevel 1 (
-    echo [错误] 未找到 Python，请先安装 Python 3.10+
+    echo   [ERROR] Python not found. Please install Python 3.10+
     pause
     exit /b 1
 )
 
-echo [步骤 1/4] 检测 Python 版本...
-for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYVER=%%v
+for /f "tokens=2 delims= " %%v in ('%PYTHON_CMD% --version 2^>^&1') do set PYVER=%%v
 echo   Python: %PYVER%
 echo.
 
-echo [步骤 2/4] 升级 pip...
-python -m pip install --upgrade pip -q
+REM Step 2: Upgrade pip
+echo [Step 2/4] Upgrading pip...
+%PYTHON_CMD% -m pip install --upgrade pip -q
 echo.
 
-echo [步骤 3/4] 安装纯 Python 依赖（快速）...
-pip install -r requirements-core.txt --no-cache-dir
+REM Step 3: Install core dependencies
+echo [Step 3/4] Installing core dependencies...
+%PIP_CMD% install -r requirements-core.txt --no-cache-dir
 if errorlevel 1 (
-    echo [警告] 部分核心依赖安装失败，请检查网络
+    echo   [WARNING] Some core dependencies failed to install. Check your network.
 )
 echo.
 
-echo [步骤 4/4] 处理 C++ 扩展依赖...
+REM Step 4: Handle C++ extension dependencies
+echo [Step 4/4] Installing C++ extension dependencies...
 echo.
 
-REM 检测是否使用 Conda
+REM Check for Conda
 where conda >nul 2>&1
 if not errorlevel 1 (
-    echo   ✓ 检测到 Conda 环境
-    echo   正在使用 Conda 安装 chromadb（推荐方式）...
+    echo   Conda environment detected.
+    echo   Installing chromadb via Conda (recommended)...
     conda install -c conda-forge chroma-hnswlib -y
     if errorlevel 1 (
-        echo   [警告] Conda 安装失败，尝试备用方案...
+        echo   [WARNING] Conda install failed, trying pip fallback...
         goto :try_pip_fallback
     ) else (
-        echo   ✓ chroma-hnswlib 安装成功！
+        echo   chroma-hnswlib installed successfully!
     )
 ) else (
     :try_pip_fallback
-    echo   ✗ 未检测到 Conda
-    echo   尝试直接通过 pip 安装 chromadb...
+    echo   Conda not detected.
+    echo   Trying pip install for chromadb...
     echo.
-    echo   ⚠️  如果出现 "Microsoft Visual C++ 14.0" 错误，
-    echo      请选择以下方案之一：
+    echo   NOTE: If you see "Microsoft Visual C++ 14.0" error,
+    echo   please choose one of the following solutions:
     echo.
-    echo   方案 A（推荐）：安装 Miniconda 后运行本脚本
-    echo     下载地址: https://docs.conda.io/en/latest/miniconda.html
+    echo   Option A (recommended): Install Miniconda and re-run this script
+    echo     Download: https://docs.conda.io/en/latest/miniconda.html
     echo.
-    echo   方案 B：安装 Visual C++ Build Tools
-    echo     下载地址: https://visualstudio.microsoft.com/visual-cpp-build-tools/
-    echo     安装时勾选 "C++ 桌面开发"
+    echo   Option B: Install Visual C++ Build Tools
+    echo     Download: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    echo     Select "Desktop development with C++"
     echo.
     
-    REM 尝试安装，可能会失败但给用户明确提示
-    pip install chromadb --no-cache-dir
+    %PIP_CMD% install chromadb --no-cache-dir
     if errorlevel 1 (
         echo.
-        echo   ❌ chromadb 安装失败
-        echo   请参考上方提示安装编译环境后重试
+        echo   [ERROR] chromadb installation failed.
+        echo   Please install build tools as described above and try again.
         pause
         exit /b 1
     )
@@ -72,11 +93,11 @@ if not errorlevel 1 (
 
 echo.
 echo ========================================
-echo   ✅ 所有依赖安装完成！
+echo   All dependencies installed!
 echo ========================================
 echo.
-echo 可选操作：
-echo   • 运行测试: python tests/test_v2_integration.py
-echo   • 启动插件: 在 AstrBot 中加载 Scriptor
+echo Optional:
+echo   Run tests: python tests/test_v2_integration.py
+echo   Start plugin: Load Scriptor in AstrBot
 echo.
 pause

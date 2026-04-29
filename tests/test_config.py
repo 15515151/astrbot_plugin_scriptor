@@ -124,12 +124,16 @@ class TestScriptorConfig:
         assert config.index_cache_timeout == 600
 
     def test_pydantic_validation(self):
-        """测试Pydantic验证"""
-        # 测试 embedding_provider 验证
-        with pytest.raises(Exception):
-            ScriptorConfig.load_from_flat_dict({"embedding_provider": "invalid"})
+        """测试Pydantic验证（宽容策略：非法值自动回退到默认值，不抛异常）"""
+        # 测试 embedding_provider 验证：非法值自动回退为 "local"
+        config = ScriptorConfig.load_from_flat_dict({"embedding_provider": "invalid"})
+        assert config.embedding.embedding_provider == "local"
 
-        # 测试 rerank_top_k > search_top_k 验证
+        # 测试 rerank_provider 验证：非法值自动回退为 "api"
+        config = ScriptorConfig.load_from_flat_dict({"rerank_provider": "invalid"})
+        assert config.rerank.rerank_provider == "api"
+
+        # 测试 rerank_top_k > search_top_k 验证（这个仍然抛异常，因为是逻辑一致性检查）
         with pytest.raises(Exception):
             ScriptorConfig.load_from_flat_dict({"search_top_k": 5, "rerank_top_k": 10, "rerank_enabled": True})
 

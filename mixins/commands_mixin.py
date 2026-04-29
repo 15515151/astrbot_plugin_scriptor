@@ -21,9 +21,10 @@ class CommandsMixin(BaseMixin):
     - 智能分段状态命令
     - 缓冲器状态命令
     - 会话锁状态命令
+
+    注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
     """
 
-    @filter.command("sc_help")
     async def cmd_sc_help(self, event: AstrMessageEvent):
         """查看 Scriptor 插件指令帮助（公开版）"""
         msg = """📜 **Scriptor 插件指令指南**
@@ -61,7 +62,6 @@ class CommandsMixin(BaseMixin):
 管理指令请使用 `/sc_admin` 查看。"""
         yield event.plain_result(msg)
 
-    @filter.command("sc_admin")
     async def cmd_sc_admin(self, event: AstrMessageEvent):
         """查看 Scriptor 插件管理指令（隐藏版）"""
         msg = """🔐 **Scriptor 管理指令**
@@ -86,7 +86,6 @@ class CommandsMixin(BaseMixin):
 💡 **警告**：管理指令涉及敏感操作，请谨慎使用。"""
         yield event.plain_result(msg)
 
-    @filter.command("smart_split_status")
     async def cmd_smart_split_status(self, event: AstrMessageEvent):
         """查看智能分段发送器状态"""
         stats = self.smart_sender.get_stats()
@@ -103,7 +102,6 @@ class CommandsMixin(BaseMixin):
 
         yield event.plain_result(msg)
 
-    @filter.command("buffer_status")
     async def cmd_buffer_status(self, event: AstrMessageEvent):
         """查看消息缓冲器状态"""
         stats = self.message_buffer.get_stats()
@@ -123,7 +121,6 @@ class CommandsMixin(BaseMixin):
 
         yield event.plain_result(msg)
 
-    @filter.command("lock_status")
     async def cmd_lock_status(self, event: AstrMessageEvent):
         """查看会话锁管理器状态"""
         stats = self.session_lock_manager.get_stats()
@@ -138,7 +135,6 @@ class CommandsMixin(BaseMixin):
 
         yield event.plain_result(msg)
 
-    @filter.command("sc_concurrency")
     async def cmd_sc_concurrency(self, event: AstrMessageEvent):
         """查看全局并发控制状态"""
         if not hasattr(self, "concurrency_guard") or not self.concurrency_guard:
@@ -167,7 +163,6 @@ class CommandsMixin(BaseMixin):
 
         yield event.plain_result(msg)
 
-    @filter.command("webui")
     async def cmd_webui(self, event: AstrMessageEvent):
         """启动 Web 管理界面"""
         is_private = event.is_private() if hasattr(event, "is_private") else False
@@ -199,7 +194,6 @@ class CommandsMixin(BaseMixin):
             "📝 提示：Web UI 可以直接编辑 Markdown 记忆文件，编辑后会自动重新索引！"
         )
 
-    @filter.command("delete")
     async def cmd_confirm_delete(self, event: AstrMessageEvent):
         """
         确认执行待确认的删除操作。

@@ -23,9 +23,10 @@ class MemoryMixin(BaseMixin):
     - 记忆维护命令
     - 睡眠巩固
     - LLM 深度记忆提取
+
+    注意：所有命令装饰器已移至 main.py 中注册，避免指令冲突
     """
 
-    @filter.command("mem_status")
     async def cmd_status(self, event: AstrMessageEvent):
         """查看记忆系统状态"""
         uid, group_id, _ = self._get_identity(event)
@@ -51,7 +52,6 @@ class MemoryMixin(BaseMixin):
 
         yield event.plain_result(msg)
 
-    @filter.command("debug_memory")
     async def cmd_debug_memory(self, event: AstrMessageEvent):
         """[调试] 查看当前记忆状态（仅私聊或管理员可用）"""
         is_private = event.is_private() if hasattr(event, "is_private") else False
@@ -92,7 +92,6 @@ class MemoryMixin(BaseMixin):
             logger.error(f"[Scriptor] Debug 命令执行失败: {e}")
             yield event.plain_result(f"❌ 调试信息获取失败: {e}")
 
-    @filter.command("search")
     async def cmd_search(self, event: AstrMessageEvent, *, remainder: str = ""):
         """检索记忆脑区
 
@@ -152,7 +151,6 @@ class MemoryMixin(BaseMixin):
         msg += "💡 输入 `/search <关键词> personal/group/cross` 可切换搜索范围。"
         yield event.plain_result(msg)
 
-    @filter.command("mem_report")
     async def cmd_mem_report(self, event: AstrMessageEvent):
         """生成记忆维护建议报告 (半自动维护)"""
         uid, group_id, _ = self._get_identity(event)

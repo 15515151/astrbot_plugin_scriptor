@@ -69,18 +69,31 @@ class TestLearningCommands:
     """测试学习模式命令"""
 
     def test_learning_commands_registered(self):
-        """验证学习模式命令已注册"""
-        learning_mixin_file = project_root / "mixins" / "learning_mixin.py"
-        if learning_mixin_file.exists():
-            content = learning_mixin_file.read_text(encoding="utf-8")
-        else:
-            main_file = project_root / "main.py"
-            content = main_file.read_text(encoding="utf-8")
+        """验证学习模式命令已注册
 
-        assert '@filter.command("开始学习")' in content, "应注册 /开始学习 命令"
-        assert '@filter.command("结束学习")' in content, "应注册 /结束学习 命令"
-        assert '@filter.command("开始授课")' in content, "应注册 /开始授课 命令"
-        assert '@filter.command("结束授课")' in content, "应注册 /结束授课 命令"
+        注意：命令装饰器已统一移至 main.py 中注册，Mixin 中只保留方法实现。
+        这是为了避免指令冲突（同一个指令被注册两次）。
+        """
+        # 验证 main.py 中注册了命令
+        main_file = project_root / "main.py"
+        main_content = main_file.read_text(encoding="utf-8")
+
+        assert '@filter.command("开始学习")' in main_content, "应在 main.py 中注册 /开始学习 命令"
+        assert '@filter.command("结束学习")' in main_content, "应在 main.py 中注册 /结束学习 命令"
+        assert '@filter.command("开始授课")' in main_content, "应在 main.py 中注册 /开始授课 命令"
+        assert '@filter.command("结束授课")' in main_content, "应在 main.py 中注册 /结束授课 命令"
+
+        # 验证 learning_mixin.py 中包含方法实现（但不含装饰器）
+        learning_mixin_file = project_root / "mixins" / "learning_mixin.py"
+        mixin_content = learning_mixin_file.read_text(encoding="utf-8")
+
+        assert "async def cmd_start_learning" in mixin_content, "应在 learning_mixin.py 中包含 cmd_start_learning 函数"
+        assert "async def cmd_end_learning" in mixin_content, "应在 learning_mixin.py 中包含 cmd_end_learning 函数"
+        assert "async def cmd_start_teaching" in mixin_content, "应在 learning_mixin.py 中包含 cmd_start_teaching 函数"
+        assert "async def cmd_end_teaching" in mixin_content, "应在 learning_mixin.py 中包含 cmd_end_teaching 函数"
+
+        # 验证 Mixin 中不包含装饰器（避免指令冲突）
+        assert '@filter.command("开始学习")' not in mixin_content, "应避免在 Mixin 中重复注册 /开始学习 命令"
 
     def test_learning_manager_imported(self):
         """验证学习管理器已导入"""

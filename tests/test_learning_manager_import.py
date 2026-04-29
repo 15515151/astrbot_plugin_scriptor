@@ -73,29 +73,37 @@ class TestLearningCommands:
     """验证学习模式命令已注册"""
 
     def test_learning_commands_in_main(self):
-        """验证 main.py 中包含学习模式命令"""
+        """验证 main.py 中包含学习模式命令
+
+        注意：命令装饰器已统一移至 main.py 中注册，Mixin 中只保留方法实现。
+        这是为了避免指令冲突（同一个指令被注册两次）。
+        """
         project_root = Path(__file__).parent.parent
 
+        # 验证 main.py 中注册了命令
+        main_file = project_root / "main.py"
+        main_content = main_file.read_text(encoding="utf-8")
+
+        assert '@filter.command("开始学习")' in main_content, "应在 main.py 中注册 /开始学习 命令"
+        assert '@filter.command("结束学习")' in main_content, "应在 main.py 中注册 /结束学习 命令"
+        assert '@filter.command("开始授课")' in main_content, "应在 main.py 中注册 /开始授课 命令"
+        assert '@filter.command("结束授课")' in main_content, "应在 main.py 中注册 /结束授课 命令"
+        assert '@filter.command("学习状态")' in main_content, "应在 main.py 中注册 /学习状态 命令"
+
+        # 验证 learning_mixin.py 中包含方法实现
         learning_mixin_file = project_root / "mixins" / "learning_mixin.py"
-        if learning_mixin_file.exists():
-            content = learning_mixin_file.read_text(encoding="utf-8")
-        else:
-            main_file = project_root / "main.py"
-            content = main_file.read_text(encoding="utf-8")
+        mixin_content = learning_mixin_file.read_text(encoding="utf-8")
 
-        assert '@filter.command("开始学习")' in content, "应注册 /开始学习 命令"
-        assert '@filter.command("结束学习")' in content, "应注册 /结束学习 命令"
-        assert '@filter.command("开始授课")' in content, "应注册 /开始授课 命令"
-        assert '@filter.command("结束授课")' in content, "应注册 /结束授课 命令"
-        assert '@filter.command("学习状态")' in content, "应注册 /学习状态 命令"
+        assert "async def cmd_start_learning" in mixin_content, "应在 learning_mixin.py 中包含 cmd_start_learning 函数"
+        assert "async def cmd_end_learning" in mixin_content, "应在 learning_mixin.py 中包含 cmd_end_learning 函数"
+        assert "async def cmd_start_teaching" in mixin_content, "应在 learning_mixin.py 中包含 cmd_start_teaching 函数"
+        assert "async def cmd_end_teaching" in mixin_content, "应在 learning_mixin.py 中包含 cmd_end_teaching 函数"
+        assert "async def cmd_learning_status" in mixin_content, "应在 learning_mixin.py 中包含 cmd_learning_status 函数"
 
-        assert "async def cmd_start_learning" in content, "应包含 cmd_start_learning 函数"
-        assert "async def cmd_end_learning" in content, "应包含 cmd_end_learning 函数"
-        assert "async def cmd_start_teaching" in content, "应包含 cmd_start_teaching 函数"
-        assert "async def cmd_end_teaching" in content, "应包含 cmd_end_teaching 函数"
-        assert "async def cmd_learning_status" in content, "应包含 cmd_learning_status 函数"
+        # 验证 Mixin 中不包含装饰器（避免指令冲突）
+        assert '@filter.command("开始学习")' not in mixin_content, "应避免在 Mixin 中重复注册 /开始学习 命令"
 
-        print("✅ 学习模式命令验证通过")
+        print("✅ 学习模式命令验证通过（架构：main.py 注册，Mixin 实现）")
 
 
 if __name__ == "__main__":

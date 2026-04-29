@@ -91,7 +91,7 @@ from .web.shared_state import set_shared_state
     "astrbot_plugin_scriptor",
     "Scriptor",
     "基于 Scriptor 的多角色跨群体 AI 智能管家记忆系统",
-    "1.0.1",
+    "1.0.2",
     "https://github.com/astrbots/astrbot_plugin_scriptor",
 )
 class ScriptorPlugin(
@@ -593,6 +593,21 @@ class ScriptorPlugin(
             # 更新全局配置
             from .tools.common.text_utils import set_global_config
             set_global_config(self.config)
+            
+            # 同步更新 shared_state 中的配置引用
+            from .web.shared_state import set_shared_state, _shared_state
+            _shared_state["config"] = self.config
+            
+            # 同步配置到 WebUI 的 config.json 文件
+            try:
+                config_dump = self.data_dir / "config.json"
+                config_dump.write_text(
+                    json.dumps(self.config.dict(), indent=4, ensure_ascii=False),
+                    encoding="utf-8"
+                )
+                logger.info("[Scriptor] 已同步配置到 Web UI config.json")
+            except Exception as sync_err:
+                logger.warning(f"[Scriptor] 同步配置到 Web UI 失败: {sync_err}")
             
             # 重新初始化依赖配置的组件
             await self._reload_config_dependent_components()
