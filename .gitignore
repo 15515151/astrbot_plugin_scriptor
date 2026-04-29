@@ -100,3 +100,6 @@ quality_check_report.json
 *_REPORT.md
 AUTOMATED_BUILD_SUMMARY.md
 DOCUMENTATION_COMPLETION_SUMMARY.md
+
+# Graphify output
+graphify-out/
