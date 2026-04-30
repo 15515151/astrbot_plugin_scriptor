@@ -2,6 +2,7 @@
 
 > **适用范围**：AstrBot 插件版本发布
 > **最后更新**：2026-04-29
+> **SOP 版本**：1.1
 
 ---
 
@@ -13,34 +14,33 @@
 |------|------|------|
 | `metadata.yaml` | `version` | `version: "1.0.2"` |
 | `pyproject.toml` | `version` | `version = "1.0.2"` |
-| `main.py` | `__version__` | `__version__ = "1.0.2"` |
+| `main.py` | `@register 装饰器` | `"1.0.2",` |
 | `CHANGELOG.md` | 新增版本章节 | `## [1.0.2] - 2026-04-29` |
 
 ### 1.2 注意事项
-- **三个文件的版本号必须一致**
+- **四个文件（metadata.yaml、pyproject.toml、main.py、CHANGELOG.md）的版本号/更新日志必须一致**
 - 版本号格式：`主版本.次版本.修订号`（Semantic Versioning）
 - `metadata.yaml` 是 AstrBot 插件市场读取的主要来源
+- `main.py` 中没有 `__version__` 变量，版本号在 `@register` 装饰器中指定
 
 ---
 
 ## 二、编写 CHANGELOG.md 更新日志
 
-### 2.1 文件格式
-
 ```markdown
-## [版本号] - YYYY-MM-DD
+# 2. 编写 CHANGELOG.md 更新日志（必须在提交代码前完成）
+- 在插件根目录创建或更新 CHANGELOG.md
+- 按版本记录新增功能、修复问题、优化项
 
-### Added（新增功能）
-- 功能描述
+## [1.0.2] - YYYY-MM-DD
+### Added
+- 新增功能描述
 
-### Changed（变更/优化）
-- 优化内容
+### Fixed
+- 修复问题描述
 
-### Fixed（修复问题）
-- 修复内容
-
-### Removed（移除内容）
-- 移除内容
+### Changed
+- 优化或调整内容
 ```
 
 ### 2.2 编写建议
@@ -167,7 +167,9 @@ git status
 | 插件市场版本号不更新 | Tag 未推送 | `git push origin vX.X.X` |
 | 插件市场版本号不更新 | Tag 指向错误的提交 | 删除并重新创建 Tag |
 | 依赖冲突 | 版本上限限制 | 移除上限，与 AstrBot 核心保持一致 |
-| 指令冲突 | 多处注册命令 | 中心化命令注册，移除 mixin 中的装饰器 |
+| 指令冲突（重复注册） | 多处注册命令/事件装饰器 | 中心化命令注册，移除 mixin 中的 @filter 装饰器 |
+| 热重载后指令冲突 | AstrBot `_unbind_plugin` 无法清理 Mixin 模块的 handler | 移除 Mixin 中的 @filter 装饰器，在 main.py 中统一注册代理方法 |
+| CHANGELOG.md 未被 Tag 包含 | 先创建 Tag 后提交 CHANGELOG | 先修改所有版本号文件（含 CHANGELOG），提交代码，**再**创建 Tag |
 
 ---
 
