@@ -1,0 +1,50 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.2] - 2026-04-29
+
+### Added
+- TODO 清单增强：支持截止时间（due_date）、提醒时间（reminder_time）和关联提醒 ID（linked_reminder_id）
+- 周期性任务支持：TODO 支持设置重复执行任务
+- 配置宽容验证：embedding_provider 和 rerank_provider 无效值自动回退为默认值
+- 配置同步机制：AstrBot 配置修改后自动同步到 WebUI 和 shared_state
+- install.bat 虚拟环境自动检测：优先使用 AstrBot venv 中的 Python 和 pip
+
+### Changed
+- 命令注册中心化：移除 mixins 中的 @filter.command 装饰器，统一在 main.py 中注册
+- 依赖版本策略：移除 openai、psutil 的版本上限，与 AstrBot 核心版本保持一致
+- install.bat 编码优化：转换为纯 ASCII 格式，避免 Windows 编码问题
+- .gitignore 优化：将 graphify-out/ 加入忽略列表，防止二进制文件提交
+
+### Fixed
+- 修复指令冲突问题（56 个重复命令）
+- 修复 embedding_provider 校验失败导致插件永久加载失败的问题
+- 修复 AstrBot 配置修改后 WebUI 不更新的问题
+- 修复 install.bat 中文字符导致的乱码和命令执行失败问题
+
+## [1.0.1] - 2026-04-28
+
+### Changed
+- 更新插件元数据版本号为 1.0.1
+- 添加 metadata.yaml 文件以支持 AstrBot 插件市场版本检测
+
+### Fixed
+- 修复插件市场版本号不更新的问题
+- 修复 Git 标签与 metadata.yaml 版本不一致的问题
+
+## [1.0.0] - 2026-04-27
+
+### Added
+- 初始版本发布
+- 基于 Scriptor 体系的多角色跨群体 AI 智能管家记忆系统
+- 跨平台身份聚合
+- 群体记忆管理
+- 跨群信息传递
+- 主动式记忆管理
+- 文件即记忆
+- 三层 Heartbeat 机制（全局/群聊/个人）
+- 记忆分类学习、身份管理、长期记忆检索
