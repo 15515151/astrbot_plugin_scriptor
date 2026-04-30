@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-04-29
+
+### Fixed
+- 修复指令冲突问题：移除 EventsMixin 中的 @filter 事件装饰器，统一在 main.py 中注册
+- 修复插件热重载后 Mixin handler 残留导致的双重注册问题
+
+### Changed
+- EventsMixin 中的所有 @filter 装饰器（event_message_type、on_llm_request、on_llm_response、on_llm_tool_respond、on_using_llm_tool、on_decorating_result）已移除
+- 事件钩子统一通过 main.py 中的代理方法注册，确保 handler_module_path 与插件主模块一致
+
 ## [1.0.2] - 2026-04-29
 
 ### Added
