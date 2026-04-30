@@ -4,7 +4,7 @@ import time
 from typing import TYPE_CHECKING
 
 from astrbot.api import logger
-from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.event import AstrMessageEvent
 from astrbot.api.provider import LLMResponse, ProviderRequest
 
 from ..core.concurrency_guard import compute_priority_from_event
@@ -27,7 +27,6 @@ class EventsMixin(BaseMixin):
     - 消息装饰器
     """
 
-    @filter.event_message_type(filter.EventMessageType.ALL)
     async def global_recorder(self, event: AstrMessageEvent):
         """全局消息记录器（带并发控制和消息缓冲）"""
         uid, group_id, physical_user_id = self._get_identity(event)
@@ -190,7 +189,6 @@ class EventsMixin(BaseMixin):
         except Exception as e:
             logger.error(f"[ActiveReply] 处理主动回复决策失败: {e}")
 
-    @filter.on_llm_request()
     async def before_llm_request(self, event: AstrMessageEvent, req: ProviderRequest):
         """LLM 请求前：注入提示词（带 Token 控制）"""
         await self._wait_for_ready()
@@ -280,7 +278,6 @@ class EventsMixin(BaseMixin):
             logger.warning(f"[Scriptor-Skill] 技能推荐注入失败: {e}")
             return ""
 
-    @filter.on_llm_response()
     async def after_response(self, event: AstrMessageEvent, resp: LLMResponse):
         """记录 AI 回复并触发记忆提取"""
         await self._wait_for_ready()
@@ -327,7 +324,6 @@ class EventsMixin(BaseMixin):
                 )
                 await self._try_sleep_consolidation(uid, group_id)
 
-    @filter.on_llm_tool_respond()
     async def on_tool_respond(self, event: AstrMessageEvent, tool, tool_args, tool_result):
         """工具执行后：记录调试日志 + 处理高危操作确认"""
         tool_name = getattr(tool, "name", str(tool))
@@ -389,7 +385,6 @@ class EventsMixin(BaseMixin):
         except Exception as e:
             logger.error(f"[Scriptor] 发送删除确认消息时出错: {e}")
 
-    @filter.on_using_llm_tool()
     async def on_tool_call(self, event: AstrMessageEvent, tool, tool_args):
         """工具调用前：记录详细调试日志"""
         if not self.config.debug_mode:
@@ -399,7 +394,6 @@ class EventsMixin(BaseMixin):
         logger.debug(f"[Scriptor-Debug] ⚡ 即将调用工具: {tool_name}")
         logger.debug(f"[Scriptor-Debug] 📋 调用参数: {tool_args}")
 
-    @filter.on_decorating_result()
     async def on_decorating_result(self, event: AstrMessageEvent):
         """
         发送前的消息装饰器
