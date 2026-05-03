@@ -101,5 +101,8 @@ quality_check_report.json
 AUTOMATED_BUILD_SUMMARY.md
 DOCUMENTATION_COMPLETION_SUMMARY.md
 
+# Legacy metadata file (replaced by metadata.yaml)
+plugin.json
+
 # Graphify output
 graphify-out/

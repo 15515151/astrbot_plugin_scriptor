@@ -11,7 +11,7 @@
 
 ```bash
 # 1. 进入前端目录
-cd web-vue
+cd web
 
 # 2. 安装依赖
 npm install
@@ -55,7 +55,7 @@ npm run build
 ## 项目结构
 
 ```
-web-vue/
+web/
 ├── public/              # 公共静态资源
 ├── src/
 │   ├── assets/          # 静态资源

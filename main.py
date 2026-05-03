@@ -91,7 +91,7 @@ from .web.shared_state import set_shared_state
     "astrbot_plugin_scriptor",
     "Scriptor",
     "基于 Scriptor 的多角色跨群体 AI 智能管家记忆系统",
-    "1.0.3",
+    "1.0.4",
     "https://github.com/astrbots/astrbot_plugin_scriptor",
 )
 class ScriptorPlugin(
@@ -815,7 +815,7 @@ class ScriptorPlugin(
                 if vue_dist_dir.exists():
                     logger.info(f"[Scriptor] Vue 前端已就绪，访问地址: http://127.0.0.1:{api_port}")
                 else:
-                    logger.warning("[Scriptor] Vue 前端未构建，请运行: cd web-vue && npm run build")
+                    logger.warning("[Scriptor] Vue 前端未构建，请运行: cd web && npm run build")
                     logger.info(f"[Scriptor] API 文档地址: http://127.0.0.1:{api_port}/docs")
             else:
                 logger.warning(f"[Scriptor] Web API 脚本不存在: {api_script}")

@@ -267,7 +267,7 @@ async def serve_index():
             with open(index_file, "r", encoding="utf-8") as f:
                 return f.read()
 
-    return HTMLResponse(content="<h1>灵笔司书 Web UI</h1><p>请先构建前端: cd web-vue && npm run build</p>")
+    return HTMLResponse(content="<h1>灵笔司书 Web UI</h1><p>请先构建前端: cd web && npm run build</p>")
 
 
 def _get_key_storage_dir() -> Path:
