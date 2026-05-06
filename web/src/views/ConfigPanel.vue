@@ -226,6 +226,8 @@
                 <v-col cols="12" md="4">
                   <v-switch v-model="config.session_locks_enabled" label="会话锁" hide-details />
                   <v-switch v-model="config.nightly_maintenance_enabled" label="夜间维护" hide-details class="mt-2" />
+                  <v-switch v-model="config.morning_greeting_enabled" label="每日早安问候" hide-details class="mt-2" />
+                  <v-switch v-model="config.evening_summary_enabled" label="每日总结推送" hide-details class="mt-2" />
                 </v-col>
                 <v-col cols="12" md="4">
                   <v-text-field
@@ -435,6 +437,8 @@ function getDefaultConfig(): Config {
     session_locks_enabled: true,
     nightly_maintenance_enabled: true,
     nightly_maintenance_inactivity_minutes: 60,
+    morning_greeting_enabled: true,
+    evening_summary_enabled: true,
     web_search_enabled: true,
     searxng_base_url: 'http://10.31.0.100:38080',
     searxng_secret: '',

@@ -280,8 +280,14 @@ class BackgroundTasks:
             if event_type == "idle_consolidation":
                 await self.run_idle_consolidation()
             elif event_type == "morning_greeting":
+                if not getattr(self.plugin.config, "morning_greeting_enabled", True):
+                    logger.info("[Scriptor] 早安问候已关闭，跳过")
+                    return
                 await self.run_morning_greeting()
             elif event_type == "evening_summary":
+                if not getattr(self.plugin.config, "evening_summary_enabled", True):
+                    logger.info("[Scriptor] 每日总结已关闭，跳过")
+                    return
                 await self.run_evening_summary()
 
         except Exception as e:

@@ -126,6 +126,8 @@ export interface Config {
   session_locks_enabled: boolean
   nightly_maintenance_enabled: boolean
   nightly_maintenance_inactivity_minutes: number
+  morning_greeting_enabled: boolean
+  evening_summary_enabled: boolean
   web_search_enabled: boolean
   searxng_base_url: string
   searxng_secret: string

@@ -57,6 +57,11 @@ class TaskScheduler:
         self._last_backup_time = 0
         self._load_greeting_state()
         self._load_tasks()
+        self._config = None
+
+    def set_config(self, config):
+        """设置配置引用，用于检查功能开关"""
+        self._config = config
 
     def _load_greeting_state(self):
         """加载问候状态（防止多个实例重复触发）"""
@@ -207,14 +212,16 @@ class TaskScheduler:
         # 每天早上 8 点触发早安问候
         if current_hour == 8:
             if self._morning_greeted_today != today_str:
-                self._trigger_proactive_event("morning_greeting")
+                if self._config is None or getattr(self._config, "morning_greeting_enabled", True):
+                    self._trigger_proactive_event("morning_greeting")
                 self._morning_greeted_today = today_str
                 self._save_greeting_state()
 
         # 每天晚上 22 点触发晚安/总结提醒
         if current_hour == 22:
             if self._evening_greeted_today != today_str:
-                self._trigger_proactive_event("evening_summary")
+                if self._config is None or getattr(self._config, "evening_summary_enabled", True):
+                    self._trigger_proactive_event("evening_summary")
                 self._evening_greeted_today = today_str
                 self._save_greeting_state()
 

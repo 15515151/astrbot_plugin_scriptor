@@ -335,6 +335,18 @@
     "default": true,
     "hint": "启用后自动在夜间进行索引维护"
   },
+  "morning_greeting_enabled": {
+    "description": "是否启用每日早安问候",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后每天早上 8 点自动向活跃用户发送早安问候"
+  },
+  "evening_summary_enabled": {
+    "description": "是否启用每日总结推送",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后每天晚上 22 点自动向活跃用户和群聊发送今日回顾总结"
+  },
   "debug_mode": {
     "description": "是否启用调试模式",
     "type": "bool",

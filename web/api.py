@@ -1548,9 +1548,9 @@ async def update_config_endpoint(request: Request, data: ConfigUpdate):
             json.dump(data.config, f, ensure_ascii=False, indent=2)
         
         # 同时同步到 AstrBot 配置文件
-        astrbot_config_dir = data_dir.parent.parent / "config" / "astrbot_plugin_scriptor_config.json"
+        astrbot_config_dir = data_dir.parent.parent / "config"
         astrbot_config_file = astrbot_config_dir / "astrbot_plugin_scriptor_config.json"
-        astrbot_config_file.parent.mkdir(parents=True, exist_ok=True)
+        astrbot_config_dir.mkdir(parents=True, exist_ok=True)
         
         # 将嵌套配置转换为扁平配置
         flat_config = _convert_nested_to_flat(data.config)

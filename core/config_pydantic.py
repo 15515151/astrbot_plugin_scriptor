@@ -217,6 +217,8 @@ class SystemConfig(BaseModel):
     graph_consolidation_max_diaries: int = Field(10, ge=1, le=50, description="每晚处理的最大日记数")
     llm_call_timeout: int = Field(60, ge=10, le=300, description="LLM 调用超时时间（秒）")
     require_delete_confirmation: bool = Field(True, description="删除文件时是否需要用户通过 /delete 命令二次确认")
+    morning_greeting_enabled: bool = Field(True, description="是否启用每日早安问候")
+    evening_summary_enabled: bool = Field(True, description="是否启用每日总结推送")
 
 
 class ScriptorConfigPydantic(BaseModel):
@@ -458,6 +460,8 @@ class ScriptorConfigPydantic(BaseModel):
                 "index_cache_timeout",
                 "admin_uids",
                 "debug_mode",
+                "morning_greeting_enabled",
+                "evening_summary_enabled",
             ],
         }
 

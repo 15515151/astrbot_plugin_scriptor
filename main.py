@@ -134,9 +134,13 @@ class ScriptorPlugin(
                 # 使用 utf-8-sig 编码读取，自动处理 BOM
                 with open(correct_config_path, "r", encoding="utf-8-sig") as f:
                     correct_config = json.load(f)
+                # 兼容 {"scriptor": {...}} 和扁平格式
+                if "scriptor" in correct_config and isinstance(correct_config["scriptor"], dict):
+                    correct_config = correct_config["scriptor"]
                 logger.info(f"[Scriptor] 从正确的配置文件加载成功")
                 logger.info(f"[Scriptor] web_search_enabled: {correct_config.get('web_search_enabled', 'N/A')}")
                 logger.info(f"[Scriptor] searxng_base_url: {correct_config.get('searxng_base_url', 'N/A')}")
+                logger.info(f"[Scriptor] admin_uids (raw): {correct_config.get('admin_uids', 'N/A')}")
                 # 直接使用字典，不转换为 AstrBotConfig
                 # 因为 ScriptorConfigPydantic 接受字典作为参数
             except Exception as e:
@@ -150,6 +154,7 @@ class ScriptorPlugin(
         if correct_config:
             # 使用 load_from_flat_dict 方法将扁平字典转换为嵌套配置
             self.config = ScriptorConfigPydantic.load_from_flat_dict(correct_config)
+            logger.info(f"[Scriptor] admin_uids (loaded): {self.config.admin_uids}")
             
             # 同步配置到 Scriptor 配置文件（用于 Scriptor WebUI）
             try:
@@ -171,7 +176,11 @@ class ScriptorPlugin(
             except Exception as e:
                 logger.warning(f"[Scriptor] 同步配置到 Scriptor 配置文件失败: {e}")
         else:
-            self.config = ScriptorConfigPydantic.load_from_flat_dict(config)
+            # 兼容 {"scriptor": {...}} 和扁平格式
+            fallback_config = config
+            if isinstance(fallback_config, dict) and "scriptor" in fallback_config and isinstance(fallback_config["scriptor"], dict):
+                fallback_config = fallback_config["scriptor"]
+            self.config = ScriptorConfigPydantic.load_from_flat_dict(fallback_config)
 
         from .tools.common.text_utils import set_global_config
 
@@ -219,6 +228,7 @@ class ScriptorPlugin(
 
         self.smart_sender = create_smart_sender_from_config(self.config)
         self.scheduler = TaskScheduler(self.data_dir)
+        self.scheduler.set_config(self.config)
         self.scheduler.start()
 
     def _init_knowledge_system(self):
@@ -620,10 +630,12 @@ class ScriptorPlugin(
     async def _reload_config_dependent_components(self):
         """
         重新加载依赖配置的组件
-        
+
         目前主要重新初始化网页搜索工具
         """
         try:
+            # 同步配置到调度器
+            self.scheduler.set_config(self.config)
             # 重新初始化网页搜索工具
             if self.config.web_search_enabled:
                 from .tools.web_search_tool import WebSearchTool
