@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-05-03
+
+### Fixed
+- 修复 Web UI 构建文档中的错误路径引用：将 `web-vue` 更正为 `web`
+- 修复 `web/api.py` 中未构建前端时的错误提示路径
+- 修复 `main.py` 启动日志中的构建命令提示路径
+- 修复 `web/README.md` 中的目录名称和项目结构图
+
 ## [1.0.3] - 2026-04-29
 
 ### Fixed

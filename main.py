@@ -91,7 +91,7 @@ from .web.shared_state import set_shared_state
     "astrbot_plugin_scriptor",
     "Scriptor",
     "基于 Scriptor 的多角色跨群体 AI 智能管家记忆系统",
-    "1.0.4",
+    "1.0.5",
     "https://github.com/astrbots/astrbot_plugin_scriptor",
 )
 class ScriptorPlugin(
@@ -117,7 +117,7 @@ class ScriptorPlugin(
         super().__init__(context)
         self.context = context
 
-        self.data_dir = StarTools.get_data_dir(self.name)
+        self.data_dir = StarTools.get_data_dir("astrbot_plugin_scriptor")
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         # 首先尝试从正确的配置文件加载配置
