@@ -129,7 +129,17 @@ class ScriptorPlugin(
         # self.data_dir.parent.parent = data
         correct_config_path = self.data_dir.parent.parent / "config" / "astrbot_plugin_scriptor_config.json"
         logger.info(f"[Scriptor] 尝试加载配置文件：{correct_config_path}")
-        if correct_config_path.exists():
+
+        # 兼容旧 bug：路径可能是目录而非文件（WebUI 旧版本误创建）
+        if correct_config_path.exists() and correct_config_path.is_dir():
+            nested_file = correct_config_path / "astrbot_plugin_scriptor_config.json"
+            if nested_file.exists() and nested_file.is_file():
+                logger.info(f"[Scriptor] 检测到目录形式的配置路径，使用内部文件：{nested_file}")
+                correct_config_path = nested_file
+            else:
+                logger.warning(f"[Scriptor] 配置路径是目录但内部无配置文件：{correct_config_path}")
+
+        if correct_config_path.exists() and correct_config_path.is_file():
             try:
                 # 使用 utf-8-sig 编码读取，自动处理 BOM
                 with open(correct_config_path, "r", encoding="utf-8-sig") as f:
